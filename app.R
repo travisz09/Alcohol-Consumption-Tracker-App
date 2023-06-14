@@ -185,11 +185,13 @@ server <- function(input, output, session) {
     #print(newData)
     
     #Append raw data file
-    sheet_append('https://docs.google.com/spreadsheets/d/1hJzB6tUMgvErbkr_r0_x_7E1TPJD-Dr-9Aaa-KtZcsQ/edit#gid=0',
+    #Connect to your google docs by inserting web address below.
+    sheet_append("https://docs.google.com/Your_Sheet_Here",
                  newData)
     
     #Read in updated data
-    rawData <- as.data.frame(read_sheet("https://docs.google.com/spreadsheets/d/1hJzB6tUMgvErbkr_r0_x_7E1TPJD-Dr-9Aaa-KtZcsQ/edit#gid=0"))%>%
+    #Connect to your google docs by inserting web address below.
+    rawData <- as.data.frame(read_sheet("https://docs.google.com/Your_Sheet_Here"))%>%
                     #fix pesky NULL values
                     #notes column being read in as list, creating downstream errors.
                     #Don't know how to fix right now, so just dropping notes column.
