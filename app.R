@@ -13,13 +13,13 @@
 ##### V0.0.0 6/14/23: Draft
 ##### V1.0.0 6/14/23: First working commit. Data logger only.
 
-##### To Do: ####
-##### Create figures page
-##### Summary data 
-##### App inputting wrong date/time based on shiny server sys.time.
-#####
 
 ##### Begin app #####
+##Install required packages if not already insalled.
+#install.packages(shiny)
+#install.packages(googlesheets4)
+#install.packages(tidyverse)
+#install.packages(lubridate)
 library(shiny)
 library(googlesheets4)
 library(tidyverse)
@@ -30,19 +30,19 @@ options(
   # whenever there is one account token found, use the cached token
   gargle_oauth_email = TRUE,
   # specify auth tokens should be stored in a hidden directory ".secrets"
+  # Do not share your ".secrets" to prevent unauthorized use.
   gargle_oauth_cache = ".secrets"
 )
 
-##Don't publish my own data!!!!
-rawData <- as.data.frame(read_sheet("https://docs.google.com/spreadsheets/d/1hJzB6tUMgvErbkr_r0_x_7E1TPJD-Dr-9Aaa-KtZcsQ/edit#gid=0"))%>%
-  #fix pesky NULL values
+ 
+#Connect to your google docs by inserting web address below.
+rawData <- read_sheet("https://docs.google.com/Your_Sheet_Here")%>%
+#fix pesky NULL values
   #notes column being read in as list, creating downstream errors.
   #Don't know how to fix right now, so just dropping notes column.
   select(-notes)
-#Connect to your google docs by inserting web address below.
-#rawData <- read_sheet("https://docs.google.com/Your_Sheet_Here")
 
-1 #google sheets option, grant permissions
+1 #google sheets option, grant permissions. Will require browser input on first use.
 
 summaryTable <- rawData%>%
   mutate(abv = as.numeric(abv),
