@@ -19,3 +19,5 @@ To launch this app:
   4) Optional. Change the timezone settings for users not in the PST timezone (US West Coast).
   5) Run the deploy_app script.
   6) Save the adress of your new app and enjoy.
+
+Future features updates will include data summary statistics and visualizations.
