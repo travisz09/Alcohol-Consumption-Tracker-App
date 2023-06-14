@@ -1,5 +1,5 @@
 library(rsconnect)
-rsconnect::deployApp("C:/Users/travi/Documents/Health Data/Drinking Habits/Alcohol_Tracker_app")
+rsconnect::deployApp("Your_directory/file_path_here")
 
 #overwrite option
 y
