@@ -7,23 +7,47 @@
 #    http://shiny.rstudio.com/
 #
 ##### Travis Zalesky
-##### Last Update: 6/14/23
+##### Last Update: 9/3/23
 ##### Objective: Create a custom app for tracking and visualizing my alcohol consumption habits.
 ##### Version History ####
 ##### V0.0.0 6/14/23: Draft
 ##### V1.0.0 6/14/23: First working commit. Data logger only.
-
+##### V1.1.0 9/2/23: Create BAC calculator.
+##### V1.1.1 9/3/23: Bug fix; default elapsedTime difftime function to units = 'hours'.
+#####                 Bug fix; remove today() function, replace with universal function with specified timezone.
+##### V1.2.0 9/3/23: Feat: Real time update BAC.
 
 ##### Begin app #####
-##Install required packages if not already insalled.
-#install.packages(shiny)
-#install.packages(googlesheets4)
-#install.packages(tidyverse)
-#install.packages(lubridate)
+avlb <- require("shiny")
+if (avlb == F) {
+  install.packages("shiny")
+}
 library(shiny)
+
+avlb <- require("googlesheets4")
+if (sf_avlb == F) {
+  install.packages("googlesheets4")
+}
 library(googlesheets4)
+
+avlb <- require("tidyverse")
+if (sf_avlb == F) {
+  install.packages("tidyverse")
+}
 library(tidyverse)
+
+avlb <- require("lubridate")
+if (sf_avlb == F) {
+  install.packages("lubridate")
+}
 library(lubridate)
+
+avlb <- require("hms")
+if (sf_avlb == F) {
+  install.packages("hms")
+}
+library(hms)
+
 
 #Required auth. token for shinyapp.io to access gsheets.
 options(
@@ -65,7 +89,8 @@ ui <- fluidPage(lang='en',
                       "Alcohol Consumption\nData Logger App"
                       ) #end column
                ), #end titlePanel
-    
+    tabsetPanel(type = 'tabs',
+                tabPanel('input',
     fluidRow(
       column(4,
         selectizeInput("drinkSelect", "Drink", summaryTable$drink,
@@ -88,12 +113,30 @@ ui <- fluidPage(lang='en',
                      value = first(summaryTable$lastVolume)),
         textInput('notes', "Notes"),
         actionButton('submit', "Drink!", 
-                     class ='btn-lg btn-success')
-      ), #end column
-      column(4,
-        tableOutput('table') #static table output
+                     class ='btn-lg btn-success'),
+        column(4,
+               tableOutput('table') #static table output
+        ) #end column
       ) #end column
-    ), #end fluidRow
+      ) #end fluidRow
+    ), #end tabPanel
+                tabPanel("BAC",
+             fluidRow(
+               column(4, 
+                      selectInput("genderSelect", "Gender",
+                                  choices = c("M", "F"),
+                                        selected = userGender,
+                                        multiple = FALSE),
+                      numericInput("weight", "Weight (lbs)", value = userWeight,
+                                   min = 0),
+                      #textOutput("gender"),
+                      #textOutput("rText"),
+                      h5("Approximate BAC = "),
+                      textOutput("BAC")
+               ) #end column
+             ) #end row
+             ) #end tabPanel
+    ), #end tabsetPanel
     
     # Begin footer
     fluidRow(
@@ -156,6 +199,21 @@ server <- function(input, output, session) {
     updateNumericInput(session, 'abv', 
                       value = s$abv)
   }) #end observeEvent
+
+  #Begin BAC tab functions
+  #output$gender <- renderText({ userGender })
+  #output$rText <- renderText({ r })
+  
+  alcoholConsumed <- sum(rawData%>%
+                           filter(date == format(as.Date(.POSIXct(Sys.time(), tz='UTC')-25200)))%>%
+                           summarise(totalAlcohol = (as.numeric(abv)/100)*(as.numeric(volume)*29.574)))
+  firstDrink <- as_datetime(paste(format(as.Date(.POSIXct(Sys.time(), tz='UTC')-25200)),first(subset(rawData, date == format(as.Date(.POSIXct(Sys.time(), tz='UTC')-25200)))$time)),
+                            tz = "US/Pacific")
+  elapsedTime <- as.numeric(difftime(Sys.time(), firstDrink, units = 'hours'))
+  weightInG <- userWeight*453.6
+  BAC <- (alcoholConsumed/(weightInG*r)*100)-(elapsedTime*0.015)
+  BAC <- if_else(BAC <= 0, 0, BAC)
+  output$BAC <- renderText({ round(BAC, 3) })
   
   #on user submit, "Drink!"
   observeEvent(input$submit, {
@@ -208,7 +266,18 @@ server <- function(input, output, session) {
     
     #Output updated table
     output$table <-renderTable(head(characterTable))
-  })
+    #Update BAC
+    alcoholConsumed <- sum(rawData%>%
+                             filter(date == format(as.Date(.POSIXct(Sys.time(), tz='UTC')-25200)))%>%
+                             summarise(totalAlcohol = (as.numeric(abv)/100)*(as.numeric(volume)*29.574)))
+    firstDrink <- as_datetime(paste(format(as.Date(.POSIXct(Sys.time(), tz='UTC')-25200)),first(subset(rawData, date == format(as.Date(.POSIXct(Sys.time(), tz='UTC')-25200)))$time)),
+                              tz = "US/Pacific")
+    elapsedTime <- as.numeric(difftime(Sys.time(), firstDrink, units = 'hours'))
+    weightInG <- userWeight*453.6
+    BAC <- (alcoholConsumed/(weightInG*r)*100)-(elapsedTime*0.015)
+    BAC <- if_else(BAC <= 0, 0, BAC)
+    output$BAC <- renderText({ round(BAC, 3) })
+  }) # End Input tab functions
 
 } #end server function
 
