@@ -77,6 +77,10 @@ summaryTable <- rawData%>%
             lastVolume = last(volume))%>%
   arrange(desc(lastDate))
 
+userGender <- "M"
+#r(male)=. 68 r(female)=. 55
+r = 0.68 #used for calculating BAC
+userWeight <- 170
 
 # Define UI for application
 ui <- fluidPage(lang='en',
