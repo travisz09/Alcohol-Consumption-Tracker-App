@@ -18,35 +18,18 @@
 ##### V1.2.0 9/3/23: Feat: Real time update BAC.
 
 ##### Begin app #####
-avlb <- require("shiny")
-if (avlb == F) {
-  install.packages("shiny")
-}
+#install.packages("shiny")
+#install.packages("googlesheets4")
+#install.packages("tidyverse")
+#install.packages("lubridate")
+#install.packages("hms")
+
 library(shiny)
-
-avlb <- require("googlesheets4")
-if (avlb == F) {
-  install.packages("googlesheets4")
-}
 library(googlesheets4)
-
-avlb <- require("tidyverse")
-if (avlb == F) {
-  install.packages("tidyverse")
-}
 library(tidyverse)
-
-avlb <- require("lubridate")
-if (avlb == F) {
-  install.packages("lubridate")
-}
 library(lubridate)
-
-avlb <- require("hms")
-if (avlb == F) {
-  install.packages("hms")
-}
 library(hms)
+
 
 
 #Required auth. token for shinyapp.io to access gsheets.
