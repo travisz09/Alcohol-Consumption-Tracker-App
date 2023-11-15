@@ -25,25 +25,25 @@ if (avlb == F) {
 library(shiny)
 
 avlb <- require("googlesheets4")
-if (sf_avlb == F) {
+if (avlb == F) {
   install.packages("googlesheets4")
 }
 library(googlesheets4)
 
 avlb <- require("tidyverse")
-if (sf_avlb == F) {
+if (avlb == F) {
   install.packages("tidyverse")
 }
 library(tidyverse)
 
 avlb <- require("lubridate")
-if (sf_avlb == F) {
+if (avlb == F) {
   install.packages("lubridate")
 }
 library(lubridate)
 
 avlb <- require("hms")
-if (sf_avlb == F) {
+if (avlb == F) {
   install.packages("hms")
 }
 library(hms)
