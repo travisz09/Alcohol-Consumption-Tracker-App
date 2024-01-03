@@ -12,10 +12,17 @@
 ##### Version History ####
 ##### V0.0.0 6/14/23: Draft
 ##### V1.0.0 6/14/23: First working commit. Data logger only.
-##### V1.1.0 9/2/23: Create BAC calculator.
-##### V1.1.1 9/3/23: Bug fix; default elapsedTime difftime function to units = 'hours'.
-#####                 Bug fix; remove today() function, replace with universal function with specified timezone.
+##### V1.1.0 9/2/23: Feat: Create BAC calculator.
+##### V1.1.1 9/3/23: Bug fix: default elapsedTime difftime function to units = 'hours'.
+#####                 Bug fix: remove today() function, replace with universal function with specified timezone.
 ##### V1.2.0 9/3/23: Feat: Real time update BAC.
+##### V1.2.1 1/2/23: Bug fix: Fix gender and weight settings for BAC calculator.
+
+##### To Do: ####
+##### Create figures page
+##### Summary data 
+##### Publish updated script to github.
+##### Sanitize inputs. Crashes if weight = NULL.
 
 ##### Begin app #####
 #install.packages("shiny")
@@ -30,22 +37,21 @@ library(tidyverse)
 library(lubridate)
 library(hms)
 
-
-
 #Required auth. token for shinyapp.io to access gsheets.
 options(
   # whenever there is one account token found, use the cached token
   gargle_oauth_email = TRUE,
   # specify auth tokens should be stored in a hidden directory ".secrets"
-  # Below script will write ".sectrets" folder to your directory, or other directory as specified below.
+  
+    # Below script will write ".sectrets" folder to your directory, or other directory as specified below.
   # Do not share your ".secrets" to prevent unauthorized use.
   gargle_oauth_cache = ".secrets"
 )
 
- 
-#Connect to your google docs by inserting web address below.
-rawData <- read_sheet("https://docs.google.com/Your_Sheet_Here")%>%
-#fix pesky NULL values
+#Connect to your google docs by inserting web address as shown below.
+#rawData <- read_sheet("https://docs.google.com/Your_Sheet_Here")
+rawData <- as.data.frame(read_sheet("https://docs.google.com/spreadsheets/UPDATE_HERE"))%>%
+  #fix pesky NULL values
   #notes column being read in as list, creating downstream errors.
   #Don't know how to fix right now, so just dropping notes column.
   select(-notes)
@@ -60,10 +66,7 @@ summaryTable <- rawData%>%
             lastVolume = last(volume))%>%
   arrange(desc(lastDate))
 
-userGender <- "M"
-#r(male)=. 68 r(female)=. 55
-r = 0.68 #used for calculating BAC
-userWeight <- 170
+defaltWeight <- 170
 
 # Define UI for application
 ui <- fluidPage(lang='en',
@@ -107,14 +110,14 @@ ui <- fluidPage(lang='en',
       ) #end column
       ) #end fluidRow
     ), #end tabPanel
-                tabPanel("BAC",
+    tabPanel("BAC",
              fluidRow(
                column(4, 
                       selectInput("genderSelect", "Gender",
                                   choices = c("M", "F"),
-                                        selected = userGender,
+                                        selected = "M", #Change default value as desired
                                         multiple = FALSE),
-                      numericInput("weight", "Weight (lbs)", value = userWeight,
+                      numericInput("weight", "Weight (lbs)", value = defaltWeight, #Change default value as desired
                                    min = 0),
                       #textOutput("gender"),
                       #textOutput("rText"),
@@ -124,6 +127,7 @@ ui <- fluidPage(lang='en',
              ) #end row
              ) #end tabPanel
     ), #end tabsetPanel
+      
     
     # Begin footer
     fluidRow(
@@ -146,7 +150,7 @@ ui <- fluidPage(lang='en',
 
 ) #end fluidPage
 
-# Define server logic required to draw a histogram
+# Define server logic
 server <- function(input, output, session) {
   
   #Convert all data to character to avoid known issue with renderTable dates.
@@ -186,21 +190,48 @@ server <- function(input, output, session) {
     updateNumericInput(session, 'abv', 
                       value = s$abv)
   }) #end observeEvent
-
-  #Begin BAC tab functions
-  #output$gender <- renderText({ userGender })
-  #output$rText <- renderText({ r })
   
-  alcoholConsumed <- sum(rawData%>%
-                           filter(date == format(as.Date(.POSIXct(Sys.time(), tz='UTC')-25200)))%>%
-                           summarise(totalAlcohol = (as.numeric(abv)/100)*(as.numeric(volume)*29.574)))
-  firstDrink <- as_datetime(paste(format(as.Date(.POSIXct(Sys.time(), tz='UTC')-25200)),first(subset(rawData, date == format(as.Date(.POSIXct(Sys.time(), tz='UTC')-25200)))$time)),
+  #Begin BAC tab functions
+  r <- reactiveVal(0.68) #Default r for M users, updates in real-time
+  BAC <- reactiveVal(0)
+  userWeight <- reactiveVal(defaltWeight) 
+  alcoholConsumed <- reactiveVal(sum(rawData%>%
+                           filter(date == format(as.Date(.POSIXct(Sys.time(), tz='UTC')-25200)))%>% #Update here for users outside PST timezone (see lines 237-238).
+                           summarise(totalAlcohol = (as.numeric(abv)/100)*(as.numeric(volume)*29.574))))
+  firstDrink <- as_datetime(paste(format(as.Date(.POSIXct(Sys.time(), tz='UTC')-25200)),first(subset(rawData, date == format(as.Date(.POSIXct(Sys.time(), tz='UTC')-25200)))$time)), #Update here for users outside PST timezone (see lines 237-238).
                             tz = "US/Pacific")
   elapsedTime <- as.numeric(difftime(Sys.time(), firstDrink, units = 'hours'))
-  weightInG <- userWeight*453.6
-  BAC <- (alcoholConsumed/(weightInG*r)*100)-(elapsedTime*0.015)
-  BAC <- if_else(BAC <= 0, 0, BAC)
-  output$BAC <- renderText({ round(BAC, 3) })
+  
+  observeEvent(input$weight, {
+    w <- input$weight
+    userWeight(w)
+    
+    weightInG <- userWeight()*453.6
+    
+    BAC((alcoholConsumed()/(weightInG*r())*100)-(elapsedTime*0.015))
+    
+    if (BAC() <= 0){
+      BAC(0)
+    }
+  })
+  
+  observeEvent(input$genderSelect, {
+    g <- input$genderSelect
+    if (g == "F"){
+      r(0.55)
+    } else { r(0.68) }
+    
+    weightInG <- userWeight()*453.6
+    
+    BAC((alcoholConsumed()/(weightInG*r())*100)-(elapsedTime*0.015))
+    
+    if (BAC() <= 0){
+    BAC(0)
+    }
+  }) #end observeEvent
+  
+  output$BAC <- renderText({ round(BAC(), 3) })
+  
   
   #on user submit, "Drink!"
   observeEvent(input$submit, {
@@ -208,8 +239,8 @@ server <- function(input, output, session) {
     #set variables
     #Minus 25200 seconds (7 hours) from UTC for PST time zone (i.e. US West Coast).
     #Users in other time zones will need to modify.
-    date <- format(as.Date(.POSIXct(Sys.time(), tz='UTC')-25200))
-    time <- format(.POSIXct(Sys.time(), tz='UTC')-25200, format = "%H:%M:%S")
+    date <- format(as.Date(.POSIXct(Sys.time(), tz='UTC')-25200)) #Update here for users outside PST timezone (see lines 237-238).
+    time <- format(.POSIXct(Sys.time(), tz='UTC')-25200, format = "%H:%M:%S") #Update here for users outside PST timezone (see lines 237-238).
     drink <- as.character(input$drinkSelect)
     brand <- as.character(input$brandSelect)
     style <- as.character(input$styleSelect)
@@ -231,13 +262,15 @@ server <- function(input, output, session) {
     #print(newData)
     
     #Append raw data file
-    #Connect to your google docs by inserting web address below.
-    sheet_append("https://docs.google.com/Your_Sheet_Here",
+    ##USER INPUT REQUIRED
+    ##UPDATE SHEET URL AS ON LINE 50
+    sheet_append('https://docs.google.com/UPDATE_HERE',
                  newData)
     
     #Read in updated data
-    #Connect to your google docs by inserting web address below.
-    rawData <- as.data.frame(read_sheet("https://docs.google.com/Your_Sheet_Here"))%>%
+    ##USER INPUT REQUIRED
+    ##UPDATE SHEET URL AS ON LINE 50
+    rawData <- as.data.frame(read_sheet("https://docs.google.com/UPDATE_HERE"))%>%
                     #fix pesky NULL values
                     #notes column being read in as list, creating downstream errors.
                     #Don't know how to fix right now, so just dropping notes column.
@@ -253,18 +286,25 @@ server <- function(input, output, session) {
     
     #Output updated table
     output$table <-renderTable(head(characterTable))
+    
     #Update BAC
-    alcoholConsumed <- sum(rawData%>%
-                             filter(date == format(as.Date(.POSIXct(Sys.time(), tz='UTC')-25200)))%>%
-                             summarise(totalAlcohol = (as.numeric(abv)/100)*(as.numeric(volume)*29.574)))
-    firstDrink <- as_datetime(paste(format(as.Date(.POSIXct(Sys.time(), tz='UTC')-25200)),first(subset(rawData, date == format(as.Date(.POSIXct(Sys.time(), tz='UTC')-25200)))$time)),
+    alcoholConsumed(sum(rawData%>%
+                             filter(date == format(as.Date(.POSIXct(Sys.time(), tz='UTC')-25200)))%>% #Update here for users outside PST timezone (see lines 237-238).
+                             summarise(totalAlcohol = (as.numeric(abv)/100)*(as.numeric(volume)*29.574))))
+    firstDrink <- as_datetime(paste(format(as.Date(.POSIXct(Sys.time(), tz='UTC')-25200)),first(subset(rawData, date == format(as.Date(.POSIXct(Sys.time(), tz='UTC')-25200)))$time)), #Update here for users outside PST timezone (see lines 237-238).
                               tz = "US/Pacific")
     elapsedTime <- as.numeric(difftime(Sys.time(), firstDrink, units = 'hours'))
-    weightInG <- userWeight*453.6
-    BAC <- (alcoholConsumed/(weightInG*r)*100)-(elapsedTime*0.015)
-    BAC <- if_else(BAC <= 0, 0, BAC)
-    output$BAC <- renderText({ round(BAC, 3) })
-  }) # End Input tab functions
+    weightInG <- userWeight()*453.6
+    BAC((alcoholConsumed()/(weightInG*r())*100)-(elapsedTime*0.015))
+    
+    if (BAC() <= 0){
+      BAC(0)
+    }
+  }) # End observeEvent Drink
+  
+  
+  
+  
 
 } #end server function
 
