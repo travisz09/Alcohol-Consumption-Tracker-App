@@ -55,12 +55,17 @@ options(
   gargle_oauth_cache = ".secrets"
 )
 
-#Connect to your google docs by inserting web address below.
-rawData <- as.data.frame(read_sheet("https://docs.google.com/Your_Sheet_Here"))
+#User Input Required!!
+##Update myGsheetUrl to link to your google data sheet.
+myGsheetUrl <- "https://docs.google.com/spreadsheets/YOUR_GSHEET_HERE"
+
+rawData <- as.data.frame(read_sheet(myGsheetUrl))%>%
   #fix pesky NULL values
   #notes column being read in as list, creating downstream errors.
   #Don't know how to fix right now, so just dropping notes column.
   select(-notes)
+#Connect to your google docs by inserting web address below.
+#rawData <- read_sheet("https://docs.google.com/Your_Sheet_Here")
 
 1 #google sheets option, grant permissions. Will require user browser input on first usage.
 
@@ -439,15 +444,11 @@ server <- function(input, output, session) {
     #print(newData)
     
     #Append raw data file
-    ##USER INPUT REQUIRED!!!!
-    ##UPDATE SHEET URL AS ON LINE 50
-    sheet_append("https://docs.google.com/UPDATE_HERE",
+    sheet_append('myGsheetUrl',
                  newData)
     
     #Read in updated data
-    ##USER INPUT REQUIRED!!!!
-    ##UPDATE SHEET URL AS ON LINE 50
-    rawData <<- as.data.frame(read_sheet("https://docs.google.com/UPDATE_HERE"))%>%
+    rawData <<- as.data.frame(read_sheet("myGsheetUrl"))%>%
                     #fix pesky NULL values
                     #notes column being read in as list, creating downstream errors.
                     #Don't know how to fix right now, so just dropping notes column.
