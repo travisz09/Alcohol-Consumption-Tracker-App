@@ -7,7 +7,7 @@ I am not a doctor. This app was developed for my personal use, and is being shar
 This R <a href='https://shiny.posit.co/'>Shiny<a> App is a convenient way for me to quickly log my drinking habits from anywhere. I specifically wanted a convenient way to update from my smartphone and grew tired of using the GoogleSheets app (not mobile friendly).
   
 To use this app you will need:
-  1) R installed, with all the required packages as seen in the header of the app.R file. Mainly, "shiny", "googlesheets4", "tidyverse", and "lubridate".
+  1) R installed, with the required package "shiny".
   2) A local directory from which to deploy the app.
   3) A free <a href='https://www.shinyapps.io/'>shinyapps.io<a> account to host your app.
   4) A free <a href='https://www.google.com/sheets/about/'>Google Sheet<a> with 8 columns as follows; 'date', 'time', 'drink', 'brand', 'style', 'abv', 'volume', 'notes'.
