@@ -19,6 +19,8 @@
 ##### V1.2.1 1/2/23: Bug fix: Fix gender and weight settings for BAC calculator.
 ##### V1.3.0 1/5/23: Feat: Estimate time till sober.
 #####                 Bug fix: Daylight Savings Time fix.
+##### V1.3.1 1/8/23: Bug fix: Fix bad regex expression in tSober() calculation.
+#####                 Bug fix: Fix lastDrink variable to account for non-alcoholic beverages.
 
 ##### To Do: ####
 ##### Create figures page
@@ -55,9 +57,9 @@ options(
   gargle_oauth_cache = ".secrets"
 )
 
-#User Input Required!!
+##User Input Required!!
 ##Update myGsheetUrl to link to your google data sheet.
-myGsheetUrl <- "https://docs.google.com/spreadsheets/YOUR_GSHEET_HERE"
+myGsheetUrl <- "https://docs.google.com/spreadsheets/Your_URL_Here"
 
 rawData <- as.data.frame(read_sheet(myGsheetUrl))%>%
   #fix pesky NULL values
@@ -267,8 +269,8 @@ server <- function(input, output, session) {
   alcoholConsumed <- reactiveVal(sum(rawData%>%
                            filter(date == format(as.Date(.POSIXct(Sys.time(), tz='UTC')-tzAdjust)))%>%
                            reframe(totalAlcohol = (as.numeric(abv)/100)*(as.numeric(volume)*29.574))))
-  lastDrink <- as_datetime(paste(last(rawData$date), last(rawData$time), sep = " "),
-                           tz = tz)
+  lastDrink <<- as_datetime(paste(last(subset(rawData, abv > 0)$date), last(rawData$time), sep = " "),
+                            tz = tz)
   firstDrink <- as_datetime(paste(format(as.Date(.POSIXct(lastDrink, tz='UTC')-tzAdjust)),
                                   first(subset(rawData, date == format(as.Date(.POSIXct(lastDrink, tz='UTC')-tzAdjust)))$time)),
                             tz = tz)
@@ -307,10 +309,18 @@ server <- function(input, output, session) {
       tSober(difftime(dateTime, t0, units = "days"))
       
       soberMessage("Congratulations! You've been sober for")
+      if (tSober() > 0) {
       output$soberEst <- renderText({ paste(soberMessage(), 
                                             sub("\\.\\d+$", "", tSober()), "days",
-                                            round(as.numeric(sub("^\\d\\.", "0.", tSober()))*24, 0),
+                                            round(round(as.numeric(sub("^\\d+\\.", "0.", tSober())), 2)*24, 0),
                                             "hours", sep = " ") })
+      } else { #if tSober() < 0 (bug fix if weight is extremely small value, typically a transitory state)
+        tSober(0)
+        output$soberEst <- renderText({ paste(soberMessage(), 
+                                              sub("\\.\\d+$", "", tSober()), "days",
+                                              round(as.numeric(sub("^\\d+\\.", "0.", tSober()))*24, 0),
+                                              "hours", sep = " ") })
+      }
     } else { #if BAC >= 0
       
       if (round(BAC(), 3) >= 0.08) {
@@ -369,11 +379,19 @@ server <- function(input, output, session) {
       tSober(difftime(dateTime, t0, units = "days"))
       
       soberMessage("Congratulations! You've been sober for")
-      output$soberEst <- renderText({ paste(soberMessage(), 
-                                            sub("\\.\\d+$", "", tSober()), "days",
-                                            round(as.numeric(sub("^\\d\\.", "0.", tSober()))*24, 0),
-                                            "hours", sep = " ") })
-    } else { #if BAC >= 0
+      if (tSober() > 0) {
+        output$soberEst <- renderText({ paste(soberMessage(), 
+                                              sub("\\.\\d+$", "", tSober()), "days",
+                                              round(round(as.numeric(sub("^\\d+\\.", "0.", tSober())), 2)*24, 0),
+                                              "hours", sep = " ") })
+      } else { #if tSober() < 0 (bug fix if weight is extremely small value, typically a transitory state)
+        tSober(0)
+        output$soberEst <- renderText({ paste(soberMessage(), 
+                                              sub("\\.\\d+$", "", tSober()), "days",
+                                              round(as.numeric(sub("^\\d+\\.", "0.", tSober()))*24, 0),
+                                              "hours", sep = " ") })
+        }
+      } else { #if BAC >= 0
       soberMessage("You'll be sober in")
       
     if (round(BAC(), 3) >= 0.08) {
@@ -444,11 +462,11 @@ server <- function(input, output, session) {
     #print(newData)
     
     #Append raw data file
-    sheet_append('myGsheetUrl',
+    sheet_append(myGsheetUrl,
                  newData)
     
     #Read in updated data
-    rawData <<- as.data.frame(read_sheet("myGsheetUrl"))%>%
+    rawData <<- as.data.frame(read_sheet(myGsheetUrl))%>%
                     #fix pesky NULL values
                     #notes column being read in as list, creating downstream errors.
                     #Don't know how to fix right now, so just dropping notes column.
@@ -469,8 +487,8 @@ server <- function(input, output, session) {
     alcoholConsumed(sum(rawData%>%
                              filter(date == format(as.Date(.POSIXct(Sys.time(), tz='UTC')-tzAdjust)))%>%
                              reframe(totalAlcohol = (as.numeric(abv)/100)*(as.numeric(volume)*29.574))))
-    lastDrink <<- as_datetime(paste(last(rawData$date), last(rawData$time), sep = " "),
-                             tz = tz)
+    lastDrink <<- as_datetime(paste(last(subset(rawData, abv > 0)$date), last(rawData$time), sep = " "),
+                              tz = tz)
     firstDrink <<- as_datetime(paste(format(as.Date(.POSIXct(lastDrink, tz='UTC')-tzAdjust)),
                                     first(subset(rawData, date == format(as.Date(.POSIXct(lastDrink, tz='UTC')-tzAdjust)))$time)),
                               tz = tz)
@@ -494,17 +512,25 @@ server <- function(input, output, session) {
                             reframe(totalAlcohol = (as.numeric(abv)/100)*(as.numeric(volume)*29.574)))
       elapsedTime <- as.numeric(difftime(lastDrink, firstDrink, units = 'hours'))
       peakBAC <- (lastTotalAlc/(weightInG*r())*100)-(elapsedTime*0.015)
-      #temp <- (peakBAC/0.015)*3600
+      
       t0 <- lastDrink + ((peakBAC/0.015)*3600)
       
       tSober(difftime(dateTime, t0, units = "days"))
       
       soberMessage("Congratulations! You've been sober for")
-      output$soberEst <- renderText({ paste(soberMessage(), 
-                                            sub("\\.\\d+$", "", tSober()), "days",
-                                            round(as.numeric(sub("^\\d\\.", "0.", tSober()))*24, 0),
-                                            "hours", sep = " ") })
-    } else { #if BAC >= 0
+      if (tSober() > 0) {
+        output$soberEst <- renderText({ paste(soberMessage(), 
+                                              sub("\\.\\d+$", "", tSober()), "days",
+                                              round(round(as.numeric(sub("^\\d+\\.", "0.", tSober())), 2)*24, 0),
+                                              "hours", sep = " ") })
+      } else { #if tSober() < 0 (bug fix if weight is extremely small value, typically a transitory state)
+        tSober(0)
+        output$soberEst <- renderText({ paste(soberMessage(), 
+                                              sub("\\.\\d+$", "", tSober()), "days",
+                                              round(as.numeric(sub("^\\d+\\.", "0.", tSober()))*24, 0),
+                                              "hours", sep = " ") })
+        }
+      } else { #if BAC >= 0
       soberMessage("You'll be sober in")
       tToSober((BAC()/0.015))
       if (tToSober() >= 1) {
