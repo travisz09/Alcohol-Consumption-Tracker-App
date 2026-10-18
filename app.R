@@ -281,6 +281,38 @@ server <- function(input, output, session) {
 
   # On user submit, "Drink!"
   observeEvent(input$submit, {
+    # Validate inputs
+    if (
+      is.null(input$drinkSelect) ||
+        input$drinkSelect == "" ||
+        is.null(input$abv)  ||
+        is.null(input$volume)
+    ) {
+      showNotification(
+        'Drink type, ABV, and volume are required.',
+        type = 'error'
+      )
+      return()
+    }
+
+    # Validate ABV
+    if(input$abv < 0 || input$abv > 100) {
+      showNotification(
+        'ABV must be between 0 and 100.',
+        type = 'error'
+      )
+      return()
+    }
+
+    # Validate volume
+    if(input$volume <=0) {
+      showNotification(
+        "Volume must be greater than 0.",
+        type = 'error'
+      )
+      return()
+    }
+
     # Generate time stamp
     now <- Sys.time()
 
@@ -297,15 +329,53 @@ server <- function(input, output, session) {
       notes = input$notes
     )
     
-    # Update gsheet data
-    append_drink(
-      sheet_url = sheetURL,
-      drink = newEntry
+    # Submission validation and error handling
+    write_success <- tryCatch(
+      {
+        # Update gsheet data
+        append_drink(
+          sheet_url = sheetURL,
+          drink = newEntry
+        )
+        TRUE
+      },
+      error = function(e) {
+        showNotification(
+          'Unable to save drink. Please try again.',
+          type = 'error',
+          duration = 6
+        )
+
+        message('Drink submission failed: ', conditionMessage(e))
+        FALSE
+      }
     )
-    
-    # Read in updated data
-    rawData(
-      read_drinks(sheetURL)
+    if(!write_success) {
+      return()
+    }
+
+    # Submission success, check data refresh
+    tryCatch(
+      {
+        # Read in updated data
+        rawData(
+          read_drinks(sheetURL)
+        )
+        showNotification(
+          'Drink logged.',
+          type = 'message',
+          duration = 3
+        )
+      },
+      error = function(e) {
+        showNotification(
+          'The drink was saved, but the app could not refresh the data.',
+          type = 'warning',
+          duration = 6
+        )
+
+        message("Data refresh failed: ", conditionMessage(e))
+      }
     )
   })
   

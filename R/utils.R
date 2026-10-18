@@ -77,6 +77,8 @@ validate_drinks <- function(drinks) {
 # Write data to gsheets
 append_drink <- function(sheet_url, drink) {
 
+  # stop("Simulated Google Sheets failure")
+
   required_columns <- c(
     "date", "time", "drink", "brand",
     "style", "abv", "volume", "notes"
