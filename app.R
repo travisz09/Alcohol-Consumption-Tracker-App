@@ -59,7 +59,7 @@ options(
 
 ##User Input Required!!
 ##Update myGsheetUrl to link to your google data sheet.
-myGsheetUrl <- "https://docs.google.com/spreadsheets/Your_URL_Here"
+myGsheetUrl <- readLines(".secrets/url.txt")
 
 rawData <- as.data.frame(read_sheet(myGsheetUrl))%>%
   #fix pesky NULL values
@@ -82,7 +82,7 @@ summaryTable <- rawData%>%
 #r used for calculating BAC
 #r(male)= .68; r(female)= .55
 
-defaltWeight <- 170
+defaultWeight <- 170
 tz <- "US/Pacific"
 tzAdjust <- 28800 #seconds, i.e. 8 hours
 dateTime <- .POSIXct(Sys.time(), tz='US/Pacific')#-tzAdjust
@@ -182,7 +182,7 @@ ui <- fluidPage(lang='en',
                                   choices = c("M", "F"),
                                         selected = "M", #Change default value as desired
                                         multiple = FALSE),
-                      numericInput("weight", "Weight (lbs)", value = defaltWeight, #Change default value as desired
+                      numericInput("weight", "Weight (lbs)", value = defaultWeight, #Change default value as desired
                                    min = 0),
                ) #end column
              ), #end row
@@ -265,7 +265,7 @@ server <- function(input, output, session) {
   #Begin BAC tab functions
   r <- reactiveVal(0.68) #Defalut r for M.
   BAC <- reactiveVal(0)
-  userWeight <- reactiveVal(defaltWeight) #match value to default input$weight
+  userWeight <- reactiveVal(defaultWeight) #match value to default input$weight
   alcoholConsumed <- reactiveVal(sum(rawData%>%
                            filter(date == format(as.Date(.POSIXct(Sys.time(), tz='UTC')-tzAdjust)))%>%
                            reframe(totalAlcohol = (as.numeric(abv)/100)*(as.numeric(volume)*29.574))))
