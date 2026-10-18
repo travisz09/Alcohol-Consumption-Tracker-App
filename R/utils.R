@@ -117,6 +117,7 @@ calculate_sober_time <- function(last_drink, peak_bac) {
 format_duration <- function(hours) {
   # TODO: improve plurality (1 year vs 2 years, etc.)
   # TODO: Handle edge case where minutes = 0
+  # TODO: Handle edge cases where trailing value = 0, e.g. 1 hour 0 minutes -> 1 hour, etc.
   if(hours >= 8760) {
     years <- floor(hours / 8760)
     days <- floor((hours %% 8760) / 24)
