@@ -1,3 +1,16 @@
+# Credentials / secrets
 .secrets/
+.Renviron
+.env
+
+# R session files
 .Rhistory
 .RData
+.Ruserdata
+
+# RStudio
+.Rproj.user/
+
+# OS files
+.DS_Store
+Thumbs.db

@@ -1,7 +1,3 @@
 library(rsconnect)
-#USER INPUT REQUIRED
-#UPDATE APP DIRECTORY USING LOCAL DIRECTORY, WHICH INCLUDES YOUR SHINY.IO RSCONNECT AUTHENTICATION TOKEN AND YOUR GOOGLE SHEETS .secrets AUTHENTICATION TOKEN.
-rsconnect::deployApp("Your_directory/file_path_here")
 
-#overwrite option
-y
+rsconnect::deployApp("Your_directory/file_path_here")
