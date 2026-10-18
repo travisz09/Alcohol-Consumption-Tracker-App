@@ -141,3 +141,22 @@ format_duration <- function(hours) {
     paste(minutes, 'minutes')
   }
 }
+
+# Authentication utils ------------------------------------------------------
+authenticate_google <- function() {
+  credentials <- Sys.getenv("GOOGLE_SERVICE_ACCOUNT_JSON")
+
+  if(!nzchar(credentials)) {
+    stop("GOOGLE_SERVICE_ACCOUNT_JSON environment variable is not configured.")
+  }
+
+  key_file <- tempfile(fileext = '.json')
+  json_raw <- openssl::base64_decode(credentials)
+  writeBin(json_raw, key_file)
+
+  googlesheets4::gs4_auth(
+    path = key_file
+  )
+
+  invisible(TRUE)
+}

@@ -36,15 +36,8 @@ library(clock)
 # R functions source file
 source("R/utils.R")
 
-# Required auth. token for shinyapp.io to access gsheets.
-options(
-  # whenever there is one account token found, use the cached token
-  gargle_oauth_email = TRUE,
-  # specify auth tokens should be stored in a hidden directory ".secrets"
-  # Below script will write ".sectrets" folder to your directory, or other directory as specified below.
-  # Do not share your ".secrets" to prevent unauthorized use.
-  gargle_oauth_cache = ".secrets"
-)
+# Google authentication
+authenticate_google()
 
 # User Input Required!!
 # Put your gsheet url in .secrets/url.txt.
