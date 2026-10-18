@@ -443,10 +443,7 @@ server <- function(input, output, session) {
       notes = input$notes
     )
     
-    # print(names(newEntry))
-    # str(newEntry)
-    
-    #Append raw data file
+    # Update gsheet data
     append_drink(
       sheet_url = sheetURL,
       drink = newEntry
