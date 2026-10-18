@@ -357,10 +357,56 @@ server <- function(input, output, session) {
     )
   })
 
-  tToSober <- reactiveVal(0)
+  tToSober <- reactive({
+    BAC() / 0.015
+  })
 
-  tSober <- reactiveVal(0)
+  # Sobriety calculations
+  # Alcohol consumed on the most recent drinking date
+  lastTotalAlcohol <- reactive({
+    sum(
+      rawData() %>%
+        filter(date == lastDrinkDate()) %>%
+        reframe(
+          totalAlcohol = (abv / 100) * (volume * 29.574)
+        )
+    )
+  })
 
+  peakBAC <- reactive({
+    req(weightInG(), r())
+
+    drinkingDuration <- as.numeric(
+      difftime(
+        lastDrink(),
+        firstDrink(),
+        units = "hours"
+      )
+    )
+
+    bac <- (
+      lastTotalAlcohol() / (weightInG() * r()) * 100
+    ) - (drinkingDuration * 0.015)
+
+    max(bac, 0)
+  })
+
+  # Timestamp of when BAC last reached 0
+  soberTime <- reactive({
+    lastDrink() + (peakBAC() / 0.015) * 3600
+  })
+
+  # Sobriety durration
+  tSober <- reactive({
+    as.numeric(
+      difftime(
+        Sys.time(),
+        soberTime(),
+        units = "days"
+      )
+    )
+  })
+  
   soberMessage <- reactiveVal("You'll be sober in")
   
   observeEvent(
@@ -368,38 +414,10 @@ server <- function(input, output, session) {
     {
       req(input$weight, input$genderSelect)
 
-      # weightInG()
-      
-      # g <- input$genderSelect
-      # if (g == "F"){
-      #   r(0.55)
-      # } else { r(0.68) }
-      
-      # BAC(
-      #   (alcoholConsumed() / (weightInG() * r()) * 100) -
-      #     (elapsedTime() * 0.015)
-      # )
-    
       if (BAC() == 0){
         # Sobriety block
         firstDrink()
 
-        lastTotalAlc <- sum(
-          rawData() %>%
-            filter(date == as.Date(lastDrink(), tz = app_tz))%>%
-            reframe(
-              totalAlcohol = (abv / 100) * (volume * 29.574)
-            )
-          )
-        elapsedTime()
-
-        peakBAC <- (lastTotalAlc / (weightInG() * r()) * 100) -
-          (elapsedTime() * 0.015)
-        
-        t0 <- lastDrink() + ((peakBAC / 0.015) * 3600)
-        
-        tSober(difftime(today, t0, units = "days"))
-        
         soberMessage("Congratulations! You've been sober for")
         if (tSober() > 0) {
           output$soberEst <- renderText({ 
@@ -421,7 +439,6 @@ server <- function(input, output, session) {
           })
         } else { 
           # if tSober() < 0 
-          tSober(0)
           output$soberEst <- renderText({ 
             paste(
               soberMessage(),
@@ -467,7 +484,9 @@ server <- function(input, output, session) {
           })
         }
         
-        tToSober((BAC()/0.015))
+        tToSober <- reactive({
+          BAC() / 0.015
+        })
         if (tToSober() >= 1) {
           output$soberEst <- renderText({ 
             paste(
@@ -496,7 +515,7 @@ server <- function(input, output, session) {
             ) 
           })
         }
-      } 
+        } 
   })
   
   output$BAC <- renderText({ 
@@ -555,11 +574,6 @@ server <- function(input, output, session) {
     #Update BAC
     alcoholConsumed()
     
-    # BAC(
-    #   (alcoholConsumed() / (weightInG() * r()) * 100) -
-    #     (elapsedTime() * 0.015)
-    # )
-    
     if (BAC() <= 0){ # only applicable with non-alcoholic beverages.
       BAC(0)
       
@@ -577,28 +591,6 @@ server <- function(input, output, session) {
           tz = app_tz
         )
       )
-      lastTotalAlc <- sum(
-        rawData() %>%
-          filter(date == as.Date(lastDrink(), tz = app_tz))%>%
-          reframe(
-            totalAlcohol = (abv / 100) * (volume * 29.574)
-          )
-        )
-      elapsedTime(
-        as.numeric(
-          difftime(
-            lastDrink(), 
-            firstDrink(), 
-            units = 'hours'
-          )
-        )
-      )
-      peakBAC <- (lastTotalAlc / (weightInG() * r()) * 100) -
-        (elapsedTime() * 0.015)
-      
-      t0 <- lastDrink() + ((peakBAC/0.015)*3600)
-      
-      tSober(difftime(dateTime, t0, units = "days"))
       
       soberMessage("Congratulations! You've been sober for")
       if (tSober() > 0) {
@@ -621,7 +613,6 @@ server <- function(input, output, session) {
           ) 
         })
       } else { # if tSober() < 0 
-        tSober(0)
         output$soberEst <- renderText({ 
           paste(soberMessage(),
           sub("\\.\\d+$", "", tSober()), 
@@ -637,9 +628,11 @@ server <- function(input, output, session) {
           ) 
         })
       }
-    } else { #if BAC >= 0
+    } else { # if BAC >= 0
       soberMessage("You'll be sober in")
-      tToSober((BAC()/0.015))
+      tToSober <- reactive({
+        BAC() / 0.015
+      })
       if (tToSober() >= 1) {
         output$soberEst <- renderText({ 
           paste(soberMessage(),
