@@ -1,3 +1,3 @@
 library(rsconnect)
 
-rsconnect::deployApp("Your_directory/file_path_here")
+rsconnect::deployApp()
