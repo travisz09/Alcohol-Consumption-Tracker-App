@@ -47,6 +47,9 @@ library(hms)
 library(shinyWidgets)
 library(clock)
 
+# R functions source file
+source("R/data.R")
+
 #Required auth. token for shinyapp.io to access gsheets.
 options(
   # whenever there is one account token found, use the cached token
@@ -61,19 +64,11 @@ options(
 ##Update myGsheetUrl to link to your google data sheet.
 myGsheetUrl <- readLines(".secrets/url.txt")
 
-rawData <- as.data.frame(read_sheet(myGsheetUrl))%>%
-  #fix pesky NULL values
-  #notes column being read in as list, creating downstream errors.
-  #Don't know how to fix right now, so just dropping notes column.
-  select(-notes)
-#Connect to your google docs by inserting web address below.
-#rawData <- read_sheet("https://docs.google.com/Your_Sheet_Here")
+rawData <- read_drinks(myGsheetUrl)
 
 1 #google sheets option, grant permissions. Will require user browser input on first usage.
 
 summaryTable <- rawData%>%
-  mutate(abv = as.numeric(abv),
-         volume = as.numeric(volume))%>%
   group_by(drink, brand, style, abv)%>%
   summarise(lastDate = max(date),
             lastVolume = last(volume))%>%
