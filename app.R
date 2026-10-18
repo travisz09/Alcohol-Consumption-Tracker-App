@@ -281,16 +281,28 @@ server <- function(input, output, session) {
   
   # Begin BAC tab functions
   # Establish reactive value r for gender-based BAC calculations
-  g <- defaultGender
-    if (g == "F") {
-      r <- reactiveVal(0.55)
-    } else { r <- reactiveVal(0.68) }
-  
-  BAC <- reactiveVal(0)
+  r <- reactive({
+    req(input$genderSelect)
+
+    if (input$genderSelect == "F") {
+      0.55
+    } else { 0.68 }
+  })
+    
 
   weightInG <- reactive({
     req(input$weight)
     input$weight * 453.6
+  })
+
+  BAC <- reactive({
+    req(weightInG())
+
+    bac <- (
+      alcoholConsumed() / (weightInG() * r()) * 100
+    ) - (elapsedTime() * 0.015)
+
+    max(bac, 0)  # Enforces positive values >= 0
   })
 
   alcoholConsumed <- reactive({
@@ -358,33 +370,20 @@ server <- function(input, output, session) {
 
       # weightInG()
       
-      g <- input$genderSelect
-      if (g == "F"){
-        r(0.55)
-      } else { r(0.68) }
+      # g <- input$genderSelect
+      # if (g == "F"){
+      #   r(0.55)
+      # } else { r(0.68) }
       
-      BAC(
-        (alcoholConsumed() / (weightInG() * r()) * 100) -
-          (elapsedTime() * 0.015)
-      )
+      # BAC(
+      #   (alcoholConsumed() / (weightInG() * r()) * 100) -
+      #     (elapsedTime() * 0.015)
+      # )
     
-      if (BAC() <= 0){
-        BAC(0)
-        
-        firstDrink(
-          as.POSIXct(
-            paste(
-              lastDrinkDate(),
-              first(
-                subset(
-                  rawData(),
-                  date == lastDrinkDate()
-                )$time
-              )
-            ),
-            tz = app_tz
-          )
-        )
+      if (BAC() == 0){
+        # Sobriety block
+        firstDrink()
+
         lastTotalAlc <- sum(
           rawData() %>%
             filter(date == as.Date(lastDrink(), tz = app_tz))%>%
@@ -392,20 +391,14 @@ server <- function(input, output, session) {
               totalAlcohol = (abv / 100) * (volume * 29.574)
             )
           )
-        elapsedTime(
-          as.numeric(
-            difftime(
-              lastDrink(), 
-              firstDrink(), 
-              units = 'hours'
-            )
-          )
-        )
+        elapsedTime()
+
         peakBAC <- (lastTotalAlc / (weightInG() * r()) * 100) -
           (elapsedTime() * 0.015)
+        
         t0 <- lastDrink() + ((peakBAC / 0.015) * 3600)
         
-        tSober(difftime(dateTime, t0, units = "days"))
+        tSober(difftime(today, t0, units = "days"))
         
         soberMessage("Congratulations! You've been sober for")
         if (tSober() > 0) {
@@ -446,9 +439,9 @@ server <- function(input, output, session) {
           })
         }
       } else { 
-          # if BAC >= 0
-        
+        # if BAC >= 0
         if (round(BAC(), 3) >= 0.08) {
+          # Intoxicated
           output$BAC <- renderText({ 
             paste(
               tags$b(
@@ -462,6 +455,7 @@ server <- function(input, output, session) {
             ) 
           })
         } else {
+          # Impaired
           output$BAC <- renderText({ 
             paste(
               tags$b(
@@ -561,10 +555,10 @@ server <- function(input, output, session) {
     #Update BAC
     alcoholConsumed()
     
-    BAC(
-      (alcoholConsumed() / (weightInG() * r()) * 100) -
-        (elapsedTime() * 0.015)
-    )
+    # BAC(
+    #   (alcoholConsumed() / (weightInG() * r()) * 100) -
+    #     (elapsedTime() * 0.015)
+    # )
     
     if (BAC() <= 0){ # only applicable with non-alcoholic beverages.
       BAC(0)
