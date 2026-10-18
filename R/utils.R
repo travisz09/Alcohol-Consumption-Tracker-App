@@ -1,3 +1,4 @@
+# Data Utils -----------------------------------------------------
 # Helper functions for normalizing data types from gsheets
 normalize_numeric <- function(x) {
   as.numeric(unlist(x))
@@ -95,6 +96,23 @@ append_drink <- function(sheet_url, drink) {
   invisible(TRUE)
 }
 
+# BAC utils -----------------------------------------------------------
+calculate_alcohol <- function(abv, volume) {
+  (abv / 100) * (volume * 29.574)  # oz to ml
+}
+
+calculate_bac <- function(alcohol, weight_g, r, elapsed_hours) {
+  bac <- (alcohol / (weight_g * r) * 100) - (elapsed_hours * 0.015)
+
+  max(bac, 0)  # Clamp bac to >= 0
+}
+
+# Sobriety calculations
+calculate_sober_time <- function(last_drink, peak_bac) {
+  last_drink + (peak_bac / 0.015) * 3600
+}
+
+# UI / formatting utils ------------------------------------------------------------
 # Format tSober and tToSober for UI
 format_duration <- function(hours) {
   # TODO: improve plurality (1 year vs 2 years, etc.)

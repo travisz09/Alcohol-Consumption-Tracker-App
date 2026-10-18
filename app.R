@@ -34,7 +34,7 @@ library(shinyWidgets)
 library(clock)
 
 # R functions source file
-source("R/data.R")
+source("R/utils.R")
 
 # Required auth. token for shinyapp.io to access gsheets.
 options(
@@ -327,20 +327,24 @@ server <- function(input, output, session) {
   BAC <- reactive({
     req(weightInG())
 
-    bac <- (
-      alcoholConsumed() / (weightInG() * r()) * 100
-    ) - (elapsedTime() * 0.015)
-
-    max(bac, 0)  # Enforces positive values >= 0
+    calculate_bac(
+      alcohol = alcoholConsumed(),
+      weight_g = weightInG(),
+      r = r(),
+      elapsed_hours = elapsedTime()
+    )
   })
 
   alcoholConsumed <- reactive({
+    # TODO: Refactor drinking sessions to use timestamps rather than calendar date.
+    df <- rawData() %>%
+      filter(date == today)
+
     sum(
-      rawData() %>%
-        filter(date == today)%>%
-        reframe(
-          totalAlcohol = (abv / 100) * (volume * 29.574)
-        )
+      calculate_alcohol(
+        abv = df$abv, 
+        volume = df$volume 
+      )
     )
   })
 
@@ -393,12 +397,14 @@ server <- function(input, output, session) {
   # Sobriety calculations
   # Alcohol consumed on the most recent drinking date
   lastTotalAlcohol <- reactive({
+    df <- rawData() %>%
+      filter(date == lastDrinkDate())
+
     sum(
-      rawData() %>%
-        filter(date == lastDrinkDate()) %>%
-        reframe(
-          totalAlcohol = (abv / 100) * (volume * 29.574)
-        )
+       calculate_alcohol(
+        abv = df$abv,
+        volume = df$volume
+       )
     )
   })
 
@@ -413,11 +419,12 @@ server <- function(input, output, session) {
       )
     )
 
-    bac <- (
-      lastTotalAlcohol() / (weightInG() * r()) * 100
-    ) - (drinkingDuration * 0.015)
-
-    max(bac, 0)
+    bac <- calculate_bac(
+      alcohol = lastTotalAlcohol(),
+      weight_g = weightInG(),
+      r = r(),
+      elapsed_hours = drinkingDuration
+    )
   })
 
   # Timestamp of when BAC last reached 0
