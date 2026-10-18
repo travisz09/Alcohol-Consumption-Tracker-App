@@ -64,15 +64,15 @@ options(
 # Put your gsheet url in .secrets/url.txt.
 sheetURL <- readLines(".secrets/url.txt")
 
-rawData <- read_drinks(sheetURL)
+# rawData <- read_drinks(sheetURL)
 
 1 #google sheets option, grant permissions. Will require user browser input on first usage.
 
-summaryTable <- rawData%>%
-  group_by(drink, brand, style, abv)%>%
-  summarise(lastDate = max(date),
-            lastVolume = last(volume))%>%
-  arrange(desc(lastDate))
+# summaryTable <- rawData%>%
+#   group_by(drink, brand, style, abv)%>%
+#   summarise(lastDate = max(date),
+#             lastVolume = last(volume))%>%
+#   arrange(desc(lastDate))
 
 #r used for calculating BAC
 #r(male)= .68; r(female)= .55
@@ -84,171 +84,314 @@ app_tz <- "America/Phoenix"
 today <- as.Date(Sys.time(), tz = app_tz)
 
 # Define UI for application
-ui <- fluidPage(lang='en',
-                theme = bslib::bs_theme(bootswatch = 'sandstone'),
-                
+ui <- fluidPage(
+  lang='en',
+  theme = bslib::bs_theme(bootswatch = 'sandstone'),
+  
+  # Application title
+  titlePanel(
+    windowTitle = "Alcohol Consumption Data Tracker App",
+    column(
+      width = 4,
+      "Alcohol Consumption\nData Logger App"
+    )
+  ),
+  tabsetPanel(
+    type = 'tabs',
+    tabPanel(
+      'input',
+      fluidRow(
+        column(
+          width = 4,
+          selectizeInput(
+            "drinkSelect",
+            "Drink",
+            choices = NULL,
+            multiple = FALSE,
+            options = list(create = TRUE)
+          ),
+          selectizeInput(
+            "brandSelect",
+            "Brand",
+            choices = NULL,
+            multiple = FALSE,
+            options = list(create = TRUE)
+          ),
+          selectizeInput(
+            "styleSelect", 
+            "Style", 
+            choices = NULL,
+            multiple = FALSE,
+            options = list(create = TRUE)
+          ),
+          numericInput(
+            "abv", 
+            "Alcohol by volume (abv)",
+            min = 0, 
+            max = 100,
+            value = NULL
+          ),
+          numericInput(
+            "volume", 
+            "Volume (oz)",
+            min = 0,
+            value = NULL
+          ),
+          textInput('notes', "Notes"),
+          actionButton(
+            'submit', 
+            "Drink!",
+            class ='btn-lg btn-success'
+          ),
+          column(
+            width = 4,
+            tableOutput('table') # static table output
+          ) 
+        ) 
+      ) 
+    ), 
+    tabPanel(
+      "BAC",
+      fluidRow(
+        column(
+          width = 4,
+          selectInput(
+            "genderSelect",
+            label = tags$span(
+              "Gender",
+              tags$i(
+                class = "glyphicon glyphicon-info-sign",
+                style = "color:#0072B2;",
+                title = "Formulas used to calculate BAC use sex assigned at birth. This is a limitation of the available science, and validated equations to calculate estimated BAC for people who are trans or non-binary have not been published."
+              ),
+            ),
+            choices = c("M", "F"),
+            selected = "M", #Change default value as desired
+            multiple = FALSE
+          ),
+          numericInput(
+            "weight", 
+            "Weight (lbs)", 
+            value = defaultWeight, #Change default value as desired
+            min = 0
+          ),
+        )
+      ), 
+      fluidRow(
+        column(
+          width = 4,
+          htmlOutput("BAC"),
+        ), 
+      ), 
+      fluidRow(
+        column(
+          width = 4,
+          textOutput("soberEst")
+        )
+      )
+    ) 
+  ), #end tabsetPanel
+  
+  # Begin footer
+  fluidRow(
+    column(
+      width = 4, 
+      align = 'center',
+      style = 'border: 1px solid black; margin: 5px',
+      div(
+        class = 'footer',
+        includeHTML('footer.html')
+      ) 
+    ) 
+  ) 
 
-    # Application title
-    titlePanel(windowTitle = "Alcohol Consumption Data Tracker App",
-               column(4,
-                      "Alcohol Consumption\nData Logger App"
-                      ) #end column
-               ), #end titlePanel
-    tabsetPanel(type = 'tabs',
-                tabPanel('input',
-    fluidRow(
-      column(4,
-        selectizeInput("drinkSelect", "Drink", summaryTable$drink,
-                       selected = TRUE,
-                       multiple = FALSE,
-                       options = list(create = TRUE)),
-        selectizeInput("brandSelect", "Brand", summaryTable$brand,
-                       selected = TRUE,
-                       multiple = FALSE,
-                    options = list(create = TRUE)),
-        selectizeInput("styleSelect", "Style", summaryTable$style,
-                       selected = TRUE,
-                       multiple = FALSE,
-                    options = list(create = TRUE)),
-        numericInput("abv", "Alcohol by volume (abv)", 
-                     min = 0, max = 100, 
-                     value = first(summaryTable$abv)),
-        numericInput("volume", "Volume (oz)", 
-                     min = 0, 
-                     value = first(summaryTable$lastVolume)),
-        textInput('notes', "Notes"),
-        actionButton('submit', "Drink!", 
-                     class ='btn-lg btn-success'),
-        column(4,
-               tableOutput('table') #static table output
-        ) #end column
-      ) #end column
-      ) #end fluidRow
-    ), #end tabPanel
-    tabPanel("BAC",
-             fluidRow(
-               column(4, 
-                      selectInput("genderSelect", 
-                                  label = tags$span("Gender",
-                                                    tags$i(
-                                                      class = "glyphicon glyphicon-info-sign", 
-                                                      style = "color:#0072B2;",
-                                                      title = "Formulas used to calculate BAC use sex assigned at birth. This is a limitation of the available science, and validated equations to calculate estimated BAC for people who are trans or non-binary have not been published."
-                                                    ),
-                                                
-                                        ),
-                                  choices = c("M", "F"),
-                                        selected = "M", #Change default value as desired
-                                        multiple = FALSE),
-                      numericInput("weight", "Weight (lbs)", value = defaultWeight, #Change default value as desired
-                                   min = 0),
-               ) #end column
-             ), #end row
-             fluidRow(
-                      column(4,
-                        htmlOutput("BAC"),
-                      ), #end column
-             ), #end row
-             fluidRow(
-                      column(4,
-                        textOutput("soberEst")
-                      ) #end column
-             ) #end row
-             ) #end tabPanel
-    ), #end tabsetPanel
-      
-    
-    # Begin footer
-    fluidRow(
-      column(4, align = 'center', 
-             style = 'border: 1px solid black;
-                      margin: 5px',
-             div(
-               class = 'footer',
-               includeHTML('footer.html')
-             ) #end div
-             ) #end column
-    ) #end fluidRow, footer
-    
-    
-    
-    
-
-
-        
-
-) #end fluidPage
+) 
 
 # Define server logic
 server <- function(input, output, session) {
-  
-  #Convert all data to character to avoid known issue with renderTable dates.
-  characterTable <- rawData%>%
-    mutate(date = as.character(date),
-           time = as.character(time))%>%
-    arrange(desc(date), desc(time))
-  output$table <-renderTable(head(characterTable))
-  
-  #on user select, Drink
+
+  # Read the raw data (reactive)
+  rawData <- reactiveVal(
+    read_drinks(sheetURL)
+  )
+
+  # Summarize data for UI selectors
+  summaryTable <- reactive({
+    rawData() %>%
+      group_by(drink, brand, style, abv) %>%
+      summarise(
+        lastDate = max(date),
+        lastVolume = last(volume),
+        .groups = "drop"
+      ) %>%
+      arrange(desc(lastDate))
+  })
+
+  # Initiate UI input selectors
+  # drinkSelect -> brandSelect -> styleSelect -> abv & volume
+  observe({
+    updateSelectizeInput(
+      session,
+      "drinkSelect",
+      choices = unique(summaryTable()$drink),
+      server = TRUE
+    )
+  })
   observeEvent(input$drinkSelect, {
-    #Filter brands
-    d <- summaryTable%>%filter(drink == input$drinkSelect)
-    
-    #Update brandSelect
-    updateSelectInput(session, 'brandSelect', 
-                      choices = d$brand)
-  }) #end observeEvent
-  
-  #on user select, Brand
+    choices <- summaryTable() %>%
+      filter(drink == input$drinkSelect) %>%
+      pull(brand) %>%
+      unique()
+
+    updateSelectizeInput(
+      session,
+      "brandSelect",
+      choices = choices,
+      server = TRUE
+    )
+  })
   observeEvent(input$brandSelect, {
-    #Filter brands
-    b <- summaryTable%>%filter(brand == input$brandSelect)
-    
-    #Update brandSelect
-    updateSelectInput(session, 'styleSelect', 
-                      choices = b$style)
-  }) #end observeEvent
-  
-  #on user select, Style
+    choices <- summaryTable() %>%
+      filter(
+        drink == input$drinkSelect,
+        brand == input$brandSelect
+      ) %>%
+      pull(style) %>%
+      unique()
+
+    updateSelectizeInput(
+      session,
+      "styleSelect",
+      choices = choices,
+      server = TRUE
+    )
+  })
   observeEvent(input$styleSelect, {
-    #Filter style
-    s <- summaryTable%>%filter(brand == input$brandSelect,
-                               style == input$styleSelect)
+    selection <- summaryTable() %>%
+      filter(
+        drink == input$drinkSelect,
+        brand == input$brandSelect,
+        style == input$styleSelect
+      ) %>%
+      slice(1)
+
+    updateNumericInput(
+      session,
+      'abv',
+      value = selection$abv
+    )
+    updateNumericInput(
+      session,
+      'volume',
+      value = selection$lastVolume
+    )
+  })
+
+  # Render UI summary table
+  output$table <- renderTable({
+    rawData() %>%
+      mutate(
+        date = as.character(date),
+        time = as.character(time)
+      ) %>%
+      arrange(
+        desc(date),
+        desc(time)
+      ) %>%
+      head()
+  })
+  
+  # #on user select, Drink
+  # observeEvent(input$drinkSelect, {
+  #   #Filter brands
+  #   d <- summaryTable() %>%
+  #     filter(drink == input$drinkSelect)
     
-    #Update brandSelect
-    updateNumericInput(session, 'abv', 
-                      value = s$abv)
-  }) #end observeEvent
+  #   #Update brandSelect
+  #   updateSelectInput(session, 'brandSelect', 
+  #                     choices = d$brand)
+  # }) #end observeEvent
+  
+  # #on user select, Brand
+  # observeEvent(input$brandSelect, {
+  #   #Filter brands
+  #   b <- summaryTable() %>%
+  #     filter(brand == input$brandSelect)
+    
+  #   #Update brandSelect
+  #   updateSelectInput(session, 'styleSelect', 
+  #                     choices = b$style)
+  # }) #end observeEvent
+  
+  # #on user select, Style
+  # observeEvent(input$styleSelect, {
+  #   #Filter style
+  #   s <- summaryTable() %>%
+  #     filter(
+  #       brand == input$brandSelect,
+  #       style == input$styleSelect
+  #     )
+    
+  #   #Update brandSelect
+  #   updateNumericInput(session, 'abv', 
+  #                     value = s$abv)
+  # }) #end observeEvent
   
   #Begin BAC tab functions
   r <- reactiveVal(0.68) #Defalut r for M.
   BAC <- reactiveVal(0)
   userWeight <- reactiveVal(defaultWeight) #match value to default input$weight
-  alcoholConsumed <- reactiveVal(
+  alcoholConsumed <- reactive({
     sum(
-      rawData%>%
+      rawData() %>%
         filter(date == today)%>%
         reframe(
           totalAlcohol = (abv / 100) * (volume * 29.574)
         )
     )
-  )
+  })
 
-  lastDrinkDate <<- as.Date(lastDrink, tz = app_tz)
+  lastDrink <- reactive({
+    drinks <- rawData() %>%
+      filter(!is.na(time))
 
-  firstDrink <- as_datetime(
-    paste(
-      lastDrinkDate,
-      first(
-        subset(
-          rawData, 
-          date == lastDrinkDate
-        )$time
+    as.POSIXct(
+      paste(
+        last(drinks$date),
+        last(drinks$time)
+      ),
+      tz = app_tz
+    )
+  })
+
+  lastDrinkDate <- reactive({
+    as.Date(lastDrink(), tz = app_tz)
+  })
+
+  firstDrink <- reactive({
+    first_time <- rawData() %>%
+      filter(
+        date == lastDrinkDate(),
+        !is.na(time)
+      ) %>%
+      pull(time) %>%
+      first()
+
+    as.POSIXct(
+      paste(lastDrinkDate(), first_time),
+      tz = app_tz
+    )
+  })
+
+  elapsedTime <- reactive({
+    as.numeric(
+      difftime(
+        Sys.time(),
+        firstDrink(),
+        units = 'hours'
       )
-    ),
-    tz = app_tz
-  )
-  elapsedTime <- as.numeric(difftime(Sys.time(), firstDrink, units = 'hours'))
+    )
+  })
   tToSober <- reactiveVal(0)
   tSober <- reactiveVal(0)
   soberMessage <- reactiveVal("You'll be sober in")
@@ -264,33 +407,47 @@ server <- function(input, output, session) {
     
     weightInG <- userWeight()*453.6
     
-    BAC((alcoholConsumed()/(weightInG*r())*100)-(elapsedTime*0.015))
+    BAC(
+      (alcoholConsumed() / (weightInG * r()) * 100) -
+        (elapsedTime() * 0.015)
+    )
     
     if (BAC() <= 0){
       BAC(0)
       
-      firstDrink <- as.POSIXct(
-        paste(
-          lastDrinkDate,
-          first(
-            subset(
-              rawData,
-              date == lastDrinkDate
-            )$time
-          )
-        ),
-        tz = app_tz
+      firstDrink(
+        as.POSIXct(
+          paste(
+            lastDrinkDate(),
+            first(
+              subset(
+                rawData(),
+                date == lastDrinkDate()
+              )$time
+            )
+          ),
+          tz = app_tz
+        )
       )
       lastTotalAlc <- sum(
-        rawData%>%
-          filter(date == as.Date(lastDrink, tz = app_tz))%>%
+        rawData() %>%
+          filter(date == as.Date(lastDrink(), tz = app_tz))%>%
           reframe(
             totalAlcohol = (abv / 100) * (volume * 29.574)
           )
         )
-      elapsedTime <- as.numeric(difftime(lastDrink, firstDrink, units = 'hours'))
-      peakBAC <- (lastTotalAlc/(weightInG*r())*100)-(elapsedTime*0.015)
-      t0 <- lastDrink + ((peakBAC/0.015)*3600)
+      elapsedTime(
+        as.numeric(
+          difftime(
+            lastDrink(), 
+            firstDrink(), 
+            units = 'hours'
+          )
+        )
+      )
+      peakBAC <- (lastTotalAlc / (weightInG * r()) * 100) -
+        (elapsedTime() * 0.015)
+      t0 <- lastDrink() + ((peakBAC / 0.015) * 3600)
       
       tSober(difftime(dateTime, t0, units = "days"))
       
@@ -345,34 +502,48 @@ server <- function(input, output, session) {
     userWeight(w)
     weightInG <- userWeight()*453.6
     
-    BAC((alcoholConsumed()/(weightInG*r())*100)-(elapsedTime*0.015))
+    BAC(
+      (alcoholConsumed() / (weightInG * r()) * 100) -
+        (elapsedTime() * 0.015)
+    )
     
     if (BAC() <= 0){
       BAC(0)
       
-      firstDrink <- as.POSIXct(
-        paste(
-          lastDrinkDate,
-          first(
-            subset(
-              rawData,
-              date == lastDrinkDate
-            )$time
-          )
-        ),
-        tz = app_tz
+      firstDrink(
+        as.POSIXct(
+          paste(
+            lastDrinkDate(),
+            first(
+              subset(
+                rawData(),
+                date == lastDrinkDate()
+              )$time
+            )
+          ),
+          tz = app_tz
+        )
       )
       lastTotalAlc <- sum(
-        rawData%>%
-          filter(date == as.Date(lastDrink, tz = app_tz))%>%
+        rawData() %>%
+          filter(date == as.Date(lastDrink(), tz = app_tz))%>%
           reframe(
             totalAlcohol = (abv / 100) * (volume * 29.574)
           )
         )
-      elapsedTime <- as.numeric(difftime(lastDrink, firstDrink, units = 'hours'))
-      peakBAC <- (lastTotalAlc/(weightInG*r())*100)-(elapsedTime*0.015)
+      elapsedTime(
+        as.numeric(
+          difftime(
+            lastDrink(), 
+            firstDrink(), 
+            units = 'hours'
+          )
+        )
+      )
+      peakBAC <- (lastTotalAlc / (weightInG * r()) * 100) -
+        (elapsedTime() * 0.015)
       #temp <- (peakBAC/0.015)*3600
-      t0 <- lastDrink + ((peakBAC/0.015)*3600)
+      t0 <- lastDrink() + ((peakBAC/0.015)*3600)
       
       tSober(difftime(dateTime, t0, units = "days"))
       
@@ -450,45 +621,50 @@ server <- function(input, output, session) {
       drink = newEntry
     )
     
-    #Read in updated data
-    rawData <<- read_drinks(sheetURL)
-    #Convert all data to character to avoid known issue with renderTable dates.
-    characterTable <- rawData%>%
-      mutate(date = as.character(date),
-             time = as.character(time),
-             abv = as.character(abv),
-             volume = as.character(volume))%>%
-      arrange(desc(date), desc(time))
+    # Read in updated data
+    rawData(
+      read_drinks(sheetURL)
+    )
+    # # Convert all data to character to avoid known issue with renderTable dates.
+    # characterTable <- rawData() %>%
+    #   mutate(date = as.character(date),
+    #          time = as.character(time),
+    #          abv = as.character(abv),
+    #          volume = as.character(volume))%>%
+    #   arrange(desc(date), desc(time))
     
-    #Output updated table
-    output$table <- renderTable(head(characterTable))
+    # #Output updated table
+    # output$table <- renderTable(head(characterTable))
     
     #Update BAC
     alcoholConsumed(
-      sum(
-        rawData%>%
-          filter(date == today)%>%
-          reframe(
-            totalAlcohol = (abv / 100) * (volume * 29.574)
-          )
-        )
+      # sum(
+      #   rawData() %>%
+      #     filter(date == today)%>%
+      #     reframe(
+      #       totalAlcohol = (abv / 100) * (volume * 29.574)
+      #     )
+      #   )
       )
-    lastDrink <<- as.Date(lastDrink, tz = app_tz)
-    firstDrink <<- as.POSIXct(
-      paste(
-        lastDrinkDate,
-        first(
-          subset(
-            rawData,
-            date == lastDrinkDate
-          )$time
-        )
-      ),
-      tz = app_tz
-    )
-    elapsedTime <<- as.numeric(difftime(Sys.time(), firstDrink, units = 'hours'))
+    # lastDrink <<- as.Date(lastDrink, tz = app_tz)
+    # firstDrink <<- as.POSIXct(
+    #   paste(
+    #     lastDrinkDate,
+    #     first(
+    #       subset(
+    #         rawData(),
+    #         date == lastDrinkDate
+    #       )$time
+    #     )
+    #   ),
+    #   tz = app_tz
+    # )
+    # elapsedTime <<- as.numeric(difftime(Sys.time(), firstDrink, units = 'hours'))
     weightInG <<- userWeight()*453.6
-    BAC((alcoholConsumed()/(weightInG*r())*100)-(elapsedTime*0.015))
+    BAC(
+      (alcoholConsumed() / (weightInG * r()) * 100) -
+        (elapsedTime() * 0.015)
+    )
     
     #print(BAC())
     #print(firstDrink)
@@ -497,29 +673,40 @@ server <- function(input, output, session) {
     if (BAC() <= 0){ #only applicable with non-alcoholic beverages.
       BAC(0)
       
-      firstDrink <- as.POSIXct(
-        paste(
-          lastDrinkDate,
-          first(
-            subset(
-              rawData,
-              date == lastDrinkDate
-            )$time
-          )
-        ),
-        tz = app_tz
+      firstDrink(
+        as.POSIXct(
+          paste(
+            lastDrinkDate(),
+            first(
+              subset(
+                rawData(),
+                date == lastDrinkDate()
+              )$time
+            )
+          ),
+          tz = app_tz
+        )
       )
       lastTotalAlc <- sum(
-        rawData%>%
-          filter(date == as.Date(lastDrink, tz = app_tz))%>%
+        rawData() %>%
+          filter(date == as.Date(lastDrink(), tz = app_tz))%>%
           reframe(
             totalAlcohol = (abv / 100) * (volume * 29.574)
           )
         )
-      elapsedTime <- as.numeric(difftime(lastDrink, firstDrink, units = 'hours'))
-      peakBAC <- (lastTotalAlc/(weightInG*r())*100)-(elapsedTime*0.015)
+      elapsedTime(
+        as.numeric(
+          difftime(
+            lastDrink(), 
+            firstDrink(), 
+            units = 'hours'
+          )
+        )
+      )
+      peakBAC <- (lastTotalAlc / (weightInG * r()) * 100) -
+        (elapsedTime() * 0.015)
       
-      t0 <- lastDrink + ((peakBAC/0.015)*3600)
+      t0 <- lastDrink() + ((peakBAC/0.015)*3600)
       
       tSober(difftime(dateTime, t0, units = "days"))
       
