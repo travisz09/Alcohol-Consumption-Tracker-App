@@ -432,6 +432,7 @@ server <- function(input, output, session) {
   observeEvent(input$submit, {
     # Construct newEntry df for append_drink()
     newEntry <- data.frame(
+      # TODO: fix date-time handler with proper timezone-aware timestamps
       date = format(as.Date(.POSIXct(Sys.time(), tz='UTC')-tzAdjust)),
       time = format(.POSIXct(Sys.time(), tz='UTC')-tzAdjust, format = "%H:%M:%S"),
       drink = input$drinkSelect,
@@ -442,8 +443,8 @@ server <- function(input, output, session) {
       notes = input$notes
     )
     
-    print(names(newEntry))
-    str(newEntry)
+    # print(names(newEntry))
+    # str(newEntry)
     
     #Append raw data file
     append_drink(
