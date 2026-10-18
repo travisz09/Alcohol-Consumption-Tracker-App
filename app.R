@@ -50,7 +50,7 @@ library(clock)
 # R functions source file
 source("R/data.R")
 
-#Required auth. token for shinyapp.io to access gsheets.
+# Required auth. token for shinyapp.io to access gsheets.
 options(
   # whenever there is one account token found, use the cached token
   gargle_oauth_email = TRUE,
@@ -60,8 +60,8 @@ options(
   gargle_oauth_cache = ".secrets"
 )
 
-##User Input Required!!
-##Update sheetURL to link to your google data sheet.
+# User Input Required!!
+# Put your gsheet url in .secrets/url.txt.
 sheetURL <- readLines(".secrets/url.txt")
 
 rawData <- read_drinks(sheetURL)
@@ -78,47 +78,10 @@ summaryTable <- rawData%>%
 #r(male)= .68; r(female)= .55
 
 defaultWeight <- 170
-tz <- "US/Pacific"
-tzAdjust <- 28800 #seconds, i.e. 8 hours
-dateTime <- .POSIXct(Sys.time(), tz='US/Pacific')#-tzAdjust
 
-#Determine DST boundary dates in current calender year.
-dst_boundaries <- {
-  # [start, end)
-  # example: [2021-01-01, 2022-01-01)
-  start <- date_time_build(year(Sys.time()), zone = tz)
-  end <- date_time_build(year(Sys.time()) + 1L, zone = tz)
-  
-  start <- as_sys_time(start)
-  end <- as_sys_time(end)
-  
-  # An empty vector of date-times that we will add boundaries to
-  boundaries <- .POSIXct(double(), tz = tz)
-  
-  repeat {
-    # Look up DST info based on the current `start`.
-    # It'll find the previous and next DST boundary.
-    info <- sys_time_info(start, tz)
-    boundary <- info$end
-    
-    # Is the DST boundary outside this year? If so, we are done.
-    if (boundary >= end) {
-      break
-    }
-    
-    # Otherwise add it to our growing list of boundaries
-    boundaries <- c(boundaries, as.POSIXct(boundary, tz = tz))
-    start <- boundary
-  }
-  
-  boundaries
-} # end dst_boundaries
-
-#Modify tzAdjust for DST.
-if (dateTime >= dst_boundaries[1] & dateTime <= dst_boundaries[2]) {
-  tzAdjust <- 25200 #seconds, i.e. 7 hours
-  #dateTime <- .POSIXct(Sys.time(), tz='UTC')-tzAdjust
-} # end if
+# Timezone
+app_tz <- "America/Phoenix"
+today <- as.Date(Sys.time(), tz = app_tz)
 
 # Define UI for application
 ui <- fluidPage(lang='en',
@@ -261,14 +224,30 @@ server <- function(input, output, session) {
   r <- reactiveVal(0.68) #Defalut r for M.
   BAC <- reactiveVal(0)
   userWeight <- reactiveVal(defaultWeight) #match value to default input$weight
-  alcoholConsumed <- reactiveVal(sum(rawData%>%
-                           filter(date == format(as.Date(.POSIXct(Sys.time(), tz='UTC')-tzAdjust)))%>%
-                           reframe(totalAlcohol = (as.numeric(abv)/100)*(as.numeric(volume)*29.574))))
-  lastDrink <<- as_datetime(paste(last(subset(rawData, abv > 0)$date), last(rawData$time), sep = " "),
-                            tz = tz)
-  firstDrink <- as_datetime(paste(format(as.Date(.POSIXct(lastDrink, tz='UTC')-tzAdjust)),
-                                  first(subset(rawData, date == format(as.Date(.POSIXct(lastDrink, tz='UTC')-tzAdjust)))$time)),
-                            tz = tz)
+  alcoholConsumed <- reactiveVal(
+    sum(
+      rawData%>%
+        filter(date == today)%>%
+        reframe(
+          totalAlcohol = (abv / 100) * (volume * 29.574)
+        )
+    )
+  )
+
+  lastDrinkDate <<- as.Date(lastDrink, tz = app_tz)
+
+  firstDrink <- as_datetime(
+    paste(
+      lastDrinkDate,
+      first(
+        subset(
+          rawData, 
+          date == lastDrinkDate
+        )$time
+      )
+    ),
+    tz = app_tz
+  )
   elapsedTime <- as.numeric(difftime(Sys.time(), firstDrink, units = 'hours'))
   tToSober <- reactiveVal(0)
   tSober <- reactiveVal(0)
@@ -290,13 +269,25 @@ server <- function(input, output, session) {
     if (BAC() <= 0){
       BAC(0)
       
-      firstDrink <- as_datetime(paste(first(subset(rawData, date == as.Date(lastDrink, tz = tz))$date), 
-                                      first(subset(rawData, date == as.Date(lastDrink, tz = tz))$time), 
-                                      sep = " "),
-                                tz = tz)
-      lastTotalAlc <- sum(rawData%>%
-                            filter(date == as.Date(lastDrink, tz = tz))%>%
-                            reframe(totalAlcohol = (as.numeric(abv)/100)*(as.numeric(volume)*29.574)))
+      firstDrink <- as.POSIXct(
+        paste(
+          lastDrinkDate,
+          first(
+            subset(
+              rawData,
+              date == lastDrinkDate
+            )$time
+          )
+        ),
+        tz = app_tz
+      )
+      lastTotalAlc <- sum(
+        rawData%>%
+          filter(date == as.Date(lastDrink, tz = app_tz))%>%
+          reframe(
+            totalAlcohol = (abv / 100) * (volume * 29.574)
+          )
+        )
       elapsedTime <- as.numeric(difftime(lastDrink, firstDrink, units = 'hours'))
       peakBAC <- (lastTotalAlc/(weightInG*r())*100)-(elapsedTime*0.015)
       t0 <- lastDrink + ((peakBAC/0.015)*3600)
@@ -359,13 +350,25 @@ server <- function(input, output, session) {
     if (BAC() <= 0){
       BAC(0)
       
-      firstDrink <- as_datetime(paste(first(subset(rawData, date == as.Date(lastDrink, tz = tz))$date), 
-                                      first(subset(rawData, date == as.Date(lastDrink, tz = tz))$time), 
-                                      sep = " "),
-                                tz = tz)
-      lastTotalAlc <- sum(rawData%>%
-                            filter(date == as.Date(lastDrink, tz = tz))%>%
-                            reframe(totalAlcohol = (as.numeric(abv)/100)*(as.numeric(volume)*29.574)))
+      firstDrink <- as.POSIXct(
+        paste(
+          lastDrinkDate,
+          first(
+            subset(
+              rawData,
+              date == lastDrinkDate
+            )$time
+          )
+        ),
+        tz = app_tz
+      )
+      lastTotalAlc <- sum(
+        rawData%>%
+          filter(date == as.Date(lastDrink, tz = app_tz))%>%
+          reframe(
+            totalAlcohol = (abv / 100) * (volume * 29.574)
+          )
+        )
       elapsedTime <- as.numeric(difftime(lastDrink, firstDrink, units = 'hours'))
       peakBAC <- (lastTotalAlc/(weightInG*r())*100)-(elapsedTime*0.015)
       #temp <- (peakBAC/0.015)*3600
@@ -416,11 +419,6 @@ server <- function(input, output, session) {
   }) #end observeEvent gender select
   
   output$BAC <- renderText({ paste(tags$b("Approximate BAC =", round(BAC(), 3), sep = " ")) })
-  #if statement must be in reactive context
-  ##Save snipet for later
-  #if (BAC() >= 0.08) {
-   # output$BAC <- renderText({ paste(tags$b("Approximate BAC =", "<font color=\"#FF0000\">", round(BAC(), 3), "</font>", sep = " ")) })
-  #} #end if
   
   output$soberEst <- renderText({ paste(soberMessage(), 
                                         round(tToSober(), 0), "hours",
@@ -430,11 +428,14 @@ server <- function(input, output, session) {
   
   #on user submit, "Drink!"
   observeEvent(input$submit, {
+    # Generate time stamp
+    now <- Sys.time()
+
     # Construct newEntry df for append_drink()
+    # TODO: Data currently uses separate Date and Time columns (without tz information). Update to canonical timestamp structure
     newEntry <- data.frame(
-      # TODO: fix date-time handler with proper timezone-aware timestamps
-      date = format(as.Date(.POSIXct(Sys.time(), tz='UTC')-tzAdjust)),
-      time = format(.POSIXct(Sys.time(), tz='UTC')-tzAdjust, format = "%H:%M:%S"),
+      date = today,
+      time = format(now, tz = app_tz, format = "%H:%M:%S"),
       drink = input$drinkSelect,
       brand = input$brandSelect,
       style = input$styleSelect,
@@ -450,12 +451,7 @@ server <- function(input, output, session) {
     )
     
     #Read in updated data
-    rawData <<- as.data.frame(read_sheet(sheetURL))%>%
-                    #fix pesky NULL values
-                    #notes column being read in as list, creating downstream errors.
-                    #Don't know how to fix right now, so just dropping notes column.
-                               select(-notes)
-    #print(rawData)
+    rawData <<- read_drinks(sheetURL)
     #Convert all data to character to avoid known issue with renderTable dates.
     characterTable <- rawData%>%
       mutate(date = as.character(date),
@@ -468,14 +464,28 @@ server <- function(input, output, session) {
     output$table <- renderTable(head(characterTable))
     
     #Update BAC
-    alcoholConsumed(sum(rawData%>%
-                             filter(date == format(as.Date(.POSIXct(Sys.time(), tz='UTC')-tzAdjust)))%>%
-                             reframe(totalAlcohol = (as.numeric(abv)/100)*(as.numeric(volume)*29.574))))
-    lastDrink <<- as_datetime(paste(last(subset(rawData, abv > 0)$date), last(rawData$time), sep = " "),
-                              tz = tz)
-    firstDrink <<- as_datetime(paste(format(as.Date(.POSIXct(lastDrink, tz='UTC')-tzAdjust)),
-                                    first(subset(rawData, date == format(as.Date(.POSIXct(lastDrink, tz='UTC')-tzAdjust)))$time)),
-                              tz = tz)
+    alcoholConsumed(
+      sum(
+        rawData%>%
+          filter(date == today)%>%
+          reframe(
+            totalAlcohol = (abv / 100) * (volume * 29.574)
+          )
+        )
+      )
+    lastDrink <<- as.Date(lastDrink, tz = app_tz)
+    firstDrink <<- as.POSIXct(
+      paste(
+        lastDrinkDate,
+        first(
+          subset(
+            rawData,
+            date == lastDrinkDate
+          )$time
+        )
+      ),
+      tz = app_tz
+    )
     elapsedTime <<- as.numeric(difftime(Sys.time(), firstDrink, units = 'hours'))
     weightInG <<- userWeight()*453.6
     BAC((alcoholConsumed()/(weightInG*r())*100)-(elapsedTime*0.015))
@@ -487,13 +497,25 @@ server <- function(input, output, session) {
     if (BAC() <= 0){ #only applicable with non-alcoholic beverages.
       BAC(0)
       
-      firstDrink <- as_datetime(paste(first(subset(rawData, date == as.Date(lastDrink, tz = tz))$date), 
-                                      first(subset(rawData, date == as.Date(lastDrink, tz = tz))$time), 
-                                      sep = " "),
-                                tz = tz)
-      lastTotalAlc <- sum(rawData%>%
-                            filter(date == as.Date(lastDrink, tz = tz))%>%
-                            reframe(totalAlcohol = (as.numeric(abv)/100)*(as.numeric(volume)*29.574)))
+      firstDrink <- as.POSIXct(
+        paste(
+          lastDrinkDate,
+          first(
+            subset(
+              rawData,
+              date == lastDrinkDate
+            )$time
+          )
+        ),
+        tz = app_tz
+      )
+      lastTotalAlc <- sum(
+        rawData%>%
+          filter(date == as.Date(lastDrink, tz = app_tz))%>%
+          reframe(
+            totalAlcohol = (abv / 100) * (volume * 29.574)
+          )
+        )
       elapsedTime <- as.numeric(difftime(lastDrink, firstDrink, units = 'hours'))
       peakBAC <- (lastTotalAlc/(weightInG*r())*100)-(elapsedTime*0.015)
       
@@ -539,8 +561,6 @@ server <- function(input, output, session) {
       output$BAC <- renderText({ paste(tags$b("Approximate BAC =", round(BAC(), 3)), 
                                        sep = " ") })
     }
-    
-    #print(tzAdjust)
     }
   }) # End observeEvent Drink
   
