@@ -157,7 +157,7 @@ ui <- fluidPage(
       fluidRow(
         column(
           width = 4,
-          htmlOutput("BAC"),
+          uiOutput("BAC"),
         ), 
       ), 
       fluidRow(
@@ -278,8 +278,38 @@ server <- function(input, output, session) {
       ) %>%
       head()
   })
+
+  # On user submit, "Drink!"
+  observeEvent(input$submit, {
+    # Generate time stamp
+    now <- Sys.time()
+
+    # Construct newEntry df for append_drink()
+    # TODO: Data currently uses separate Date and Time columns (without tz information). Update to canonical timestamp structure
+    newEntry <- data.frame(
+      date = today,
+      time = format(now, tz = app_tz, format = "%H:%M:%S"),
+      drink = input$drinkSelect,
+      brand = input$brandSelect,
+      style = input$styleSelect,
+      abv = input$abv,
+      volume = input$volume,
+      notes = input$notes
+    )
+    
+    # Update gsheet data
+    append_drink(
+      sheet_url = sheetURL,
+      drink = newEntry
+    )
+    
+    # Read in updated data
+    rawData(
+      read_drinks(sheetURL)
+    )
+  })
   
-  # Begin BAC tab functions
+  # BAC tab functions
   # Establish reactive value r for gender-based BAC calculations
   r <- reactive({
     req(input$genderSelect)
@@ -289,7 +319,6 @@ server <- function(input, output, session) {
     } else { 0.68 }
   })
     
-
   weightInG <- reactive({
     req(input$weight)
     input$weight * 453.6
@@ -402,291 +431,47 @@ server <- function(input, output, session) {
       difftime(
         Sys.time(),
         soberTime(),
-        units = "days"
+        units = "hours"
       )
     )
   })
   
-  soberMessage <- reactiveVal("You'll be sober in")
-  
-  observeEvent(
-    list(input$weight, input$genderSelect), 
-    {
-      req(input$weight, input$genderSelect)
+  # User BAC estimate
+  output$BAC <- renderUI({ 
+    bac <- round(BAC(), 3)
 
-      if (BAC() == 0){
-        # Sobriety block
-        firstDrink()
-
-        soberMessage("Congratulations! You've been sober for")
-        if (tSober() > 0) {
-          output$soberEst <- renderText({ 
-            paste(
-              soberMessage(), 
-              sub("\\.\\d+$", "", tSober()), 
-              "days",
-              round(
-                round(
-                  as.numeric(
-                    sub("^\\d+\\.", "0.", tSober())
-                  ), 
-                  2
-                ) * 24, 
-                0
-              ),
-              "hours", sep = " "
-            ) 
-          })
-        } else { 
-          # if tSober() < 0 
-          output$soberEst <- renderText({ 
-            paste(
-              soberMessage(),
-              sub("\\.\\d+$", "", tSober()), 
-              "days",
-              round(
-                as.numeric(
-                  sub("^\\d+\\.", "0.", tSober())
-                ) * 24,
-                0
-              ),
-              "hours", 
-              sep = " "
-            ) 
-          })
-        }
-      } else { 
-        # if BAC >= 0
-        if (round(BAC(), 3) >= 0.08) {
-          # Intoxicated
-          output$BAC <- renderText({ 
-            paste(
-              tags$b(
-                "Approximate BAC =",
-                tags$span(
-                  style = "color: red",
-                  round(BAC(), 3)
-                ),
-                sep = " "
-              )
-            ) 
-          })
-        } else {
-          # Impaired
-          output$BAC <- renderText({ 
-            paste(
-              tags$b(
-                "Approximate BAC =", 
-                round(BAC(), 3)
-              ),
-              sep = " "
-            ) 
-          })
-        }
-        
-        tToSober <- reactive({
-          BAC() / 0.015
-        })
-        if (tToSober() >= 1) {
-          output$soberEst <- renderText({ 
-            paste(
-              soberMessage(),
-              sub("\\.\\d+$", "", tToSober()), 
-              "hours",
-              round(
-                as.numeric(
-                  sub("^(.*?)\\.", "0.", tToSober())
-                ) * 60, 
-                0
-              ),
-              "minutes", 
-              sep = " "
-            ) 
-          })
-        }
-        
-        if (tToSober() < 1) {
-          output$soberEst <- renderText({ 
-            paste(
-              soberMessage(),
-              round((tToSober() * 60), 0), 
-              "minutes",
-              sep = " "
-            ) 
-          })
-        }
-        } 
-  })
-  
-  output$BAC <- renderText({ 
-    paste(
+    if (bac >= 0.08) {
+      # Intoxicated
       tags$b(
-        "Approximate BAC =", 
-        round(BAC(), 3), 
-        sep = " "
-      )
-    ) 
-  })
-  
-  output$soberEst <- renderText({ 
-    paste(
-      soberMessage(),
-      round(tToSober(), 0), 
-      "hours",
-      round(
-        (tToSober() - round(tToSober(), 0)) * 60, 
-        0
-      ), 
-      "minutes",
-      sep = " "
-    ) 
-  })
-  
-  # On user submit, "Drink!"
-  observeEvent(input$submit, {
-    # Generate time stamp
-    now <- Sys.time()
-
-    # Construct newEntry df for append_drink()
-    # TODO: Data currently uses separate Date and Time columns (without tz information). Update to canonical timestamp structure
-    newEntry <- data.frame(
-      date = today,
-      time = format(now, tz = app_tz, format = "%H:%M:%S"),
-      drink = input$drinkSelect,
-      brand = input$brandSelect,
-      style = input$styleSelect,
-      abv = input$abv,
-      volume = input$volume,
-      notes = input$notes
-    )
-    
-    # Update gsheet data
-    append_drink(
-      sheet_url = sheetURL,
-      drink = newEntry
-    )
-    
-    # Read in updated data
-    rawData(
-      read_drinks(sheetURL)
-    )
-    
-    #Update BAC
-    alcoholConsumed()
-    
-    if (BAC() <= 0){ # only applicable with non-alcoholic beverages.
-      BAC(0)
-      
-      firstDrink(
-        as.POSIXct(
-          paste(
-            lastDrinkDate(),
-            first(
-              subset(
-                rawData(),
-                date == lastDrinkDate()
-              )$time
-            )
-          ),
-          tz = app_tz
+        'Approximate BAC = ',
+        tags$span(
+          style = 'color: red;',
+          bac
         )
       )
-      
-      soberMessage("Congratulations! You've been sober for")
-      if (tSober() > 0) {
-        output$soberEst <- renderText({ 
-          paste(
-            soberMessage(),
-            sub("\\.\\d+$", "", tSober()), 
-            "days",
-            round(
-              round(
-                as.numeric(
-                  sub("^\\d+\\.", "0.", tSober())
-                ), 
-                2
-              ) * 24,
-              0
-            ),
-            "hours", 
-            sep = " "
-          ) 
-        })
-      } else { # if tSober() < 0 
-        output$soberEst <- renderText({ 
-          paste(soberMessage(),
-          sub("\\.\\d+$", "", tSober()), 
-          "days",
-          round(
-            as.numeric(
-              sub("^\\d+\\.", "0.", tSober())
-            ) * 24, 
-            0
-          ),
-          "hours", 
-          sep = " "
-          ) 
-        })
-      }
-    } else { # if BAC >= 0
-      soberMessage("You'll be sober in")
-      tToSober <- reactive({
-        BAC() / 0.015
-      })
-      if (tToSober() >= 1) {
-        output$soberEst <- renderText({ 
-          paste(soberMessage(),
-          sub("\\.\\d+$", "", tToSober()), 
-          "hours",
-          round(
-            as.numeric(
-              sub("^(.*?)\\.", "0.", tToSober())
-            ) * 60, 
-            0
-          ),
-          "minutes", 
-          sep = " "
-          )
-        })
-      }
-      
-      if (tToSober() < 1) {
-        output$soberEst <- renderText({ 
-          paste(
-            soberMessage(),
-            round((tToSober() *60), 0), 
-            "minutes",
-            sep = " "
-          ) 
-        })
-      }
-    
-      if (round(BAC(), 3) >= 0.08) {
-        output$BAC <- renderText({ 
-          paste(
-            tags$b(
-              "Approximate BAC =",
-              tags$span(
-                style = "color: red",
-                round(BAC(), 3)
-              ), 
-              sep = " "
-            )
-          ) 
-        })
-      } else {
-        output$BAC <- renderText({ 
-          paste(
-            tags$b(
-              "Approximate BAC =", 
-              round(BAC(), 3)
-            ),
-            sep = " "
-          ) 
-        })
-      }
+    } else {
+      # Impaired
+      tags$b(
+        'Approximate BAC = ',
+        bac
+      )
     }
-  }) 
+  })
+  
+  # User sobriety message
+  output$soberEst <- renderText({ 
+    if(BAC() <= 0 && tSober() > 0) {
+      paste(
+        "Congratulations! You've been sober for",
+        format_duration(tSober())
+      )
+    } else {
+      paste(
+        "You'll be sober in",
+        format_duration(tToSober())
+      )
+    }
+  })
 } 
 
 # Run the application 

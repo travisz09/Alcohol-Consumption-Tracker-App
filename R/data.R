@@ -94,3 +94,29 @@ append_drink <- function(sheet_url, drink) {
 
   invisible(TRUE)
 }
+
+# Format tSober and tToSober for UI
+format_duration <- function(hours) {
+  # TODO: improve plurality (1 year vs 2 years, etc.)
+  # TODO: Handle edge case where minutes = 0
+  if(hours >= 8760) {
+    years <- floor(hours / 8760)
+    days <- floor((hours %% 8760) / 24)
+
+    paste(years, 'years', days, 'days')
+  } else if (hours >= 24) {
+    wholeDays <- floor(hours / 24)
+    remainingHours <- floor(hours %% 24)
+    
+    paste(wholeDays, 'days', remainingHours, 'hours')
+  } else if (hours >= 1) {
+    wholeHours <- floor(hours)
+    minutes <- floor((hours - wholeHours) * 60)
+
+    paste(wholeHours, 'hours', minutes, 'minutes')
+  } else {
+    minutes <- floor(hours * 60)
+
+    paste(minutes, 'minutes')
+  }
+}
