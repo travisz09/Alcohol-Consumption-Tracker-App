@@ -61,10 +61,10 @@ options(
 )
 
 ##User Input Required!!
-##Update myGsheetUrl to link to your google data sheet.
-myGsheetUrl <- readLines(".secrets/url.txt")
+##Update sheetURL to link to your google data sheet.
+sheetURL <- readLines(".secrets/url.txt")
 
-rawData <- read_drinks(myGsheetUrl)
+rawData <- read_drinks(sheetURL)
 
 1 #google sheets option, grant permissions. Will require user browser input on first usage.
 
@@ -430,38 +430,29 @@ server <- function(input, output, session) {
   
   #on user submit, "Drink!"
   observeEvent(input$submit, {
+    # Construct newEntry df for append_drink()
+    newEntry <- data.frame(
+      date = format(as.Date(.POSIXct(Sys.time(), tz='UTC')-tzAdjust)),
+      time = format(.POSIXct(Sys.time(), tz='UTC')-tzAdjust, format = "%H:%M:%S"),
+      drink = input$drinkSelect,
+      brand = input$brandSelect,
+      style = input$styleSelect,
+      abv = input$abv,
+      volume = input$volume,
+      notes = input$notes
+    )
     
-    #set variables
-    #Minus 25200 seconds (7 hours) from UTC for PST time zone (i.e. US West Coast).
-    #Users in other time zones will need to modify.
-    date <- format(as.Date(.POSIXct(Sys.time(), tz='UTC')-tzAdjust))
-    time <- format(.POSIXct(Sys.time(), tz='UTC')-tzAdjust, format = "%H:%M:%S")
-    drink <- as.character(input$drinkSelect)
-    brand <- as.character(input$brandSelect)
-    style <- as.character(input$styleSelect)
-    abv <- as.numeric(input$abv)
-    volume <- as.numeric(input$volume)
-    notes <- as.character(input$notes)
-    
-    #create row
-    row <- c(date, time, drink, brand, style,
-                         abv, volume, notes)
-    #create df
-    df <- data.frame(matrix(ncol = 8, nrow = 0))
-    colnames(df) <- c('date', 'time', 'drink', 'brand', 'style',
-                  'abv', 'volume', 'notes')
-    #bind row to df
-    newData <- df%>%
-      rbind(row)
-    
-    #print(newData)
+    print(names(newEntry))
+    str(newEntry)
     
     #Append raw data file
-    sheet_append(myGsheetUrl,
-                 newData)
+    append_drink(
+      sheet_url = sheetURL,
+      drink = newEntry
+    )
     
     #Read in updated data
-    rawData <<- as.data.frame(read_sheet(myGsheetUrl))%>%
+    rawData <<- as.data.frame(read_sheet(sheetURL))%>%
                     #fix pesky NULL values
                     #notes column being read in as list, creating downstream errors.
                     #Don't know how to fix right now, so just dropping notes column.

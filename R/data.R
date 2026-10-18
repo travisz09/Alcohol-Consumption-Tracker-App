@@ -72,3 +72,25 @@ validate_drinks <- function(drinks) {
 
   invisible(TRUE)
 }
+
+# Write data to gsheets
+append_drink <- function(sheet_url, drink) {
+
+  required_columns <- c(
+    "date", "time", "drink", "brand",
+    "style", "abv", "volume", "notes"
+  )
+
+  if (!all(required_columns %in% names(drink))) {
+    stop("Drink record does not contain all required columns.")
+  }
+
+  drink <- drink[, required_columns]
+
+  googlesheets4::sheet_append(
+    ss = sheet_url,
+    data = drink
+  )
+
+  invisible(TRUE)
+}
