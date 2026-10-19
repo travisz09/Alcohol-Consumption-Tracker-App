@@ -1,21 +1,96 @@
 # Alcohol-Consumption-Tracker-App
-Conveniently log and visualize your alcohol consumption.
+A mobile-friendly R Shiny application for logging alcohol consumption and viewing estimated BAC and sobriety information.
 
+## Disclaimer
 <em>DISCLAIMER!</em>
-I am not a doctor. This app was developed for my personal use, and is being shared for free to anybody who might find it useful. This app is not intended to diagnose, treat, cure, or prevent any disease. Please consult with a health care professional before making any changes to your drinking habits. Please <a href='https://www.samhsa.gov/find-help/national-helpline'>seek help</a> from qualified professionals if you think you may be suffering from substance abuse issues. <font style="color:red"><b>DON'T DRINK AND DRIVE!</b></font>
+I am not a doctor. This app was developed for my personal use, and is being shared for free to anybody who might find it useful. This app is not intended to diagnose, treat, cure, or prevent any disease. Please consult with a health care professional before making any changes to your drinking habits. Please [seek help](https://www.samhsa.gov/find-help/national-helpline) from qualified professionals if you think you may be suffering from substance abuse issues. <font style="color:red"><b>DON'T DRINK AND DRIVE!</b></font>
 
-This R <a href='https://shiny.posit.co/'>Shiny<a> App is a convenient way for me to quickly log my drinking habits from anywhere. I specifically wanted a convenient way to update from my smartphone and grew tired of using the GoogleSheets app (not mobile friendly).
+## About
+This R [Shiny](https://shiny.posit.co/) App is a convenient way to keep track of my drinking habits from anywhere. Whether you are a regular drinker, or just have an occasional drink, knowing your habits can help you make good decisions. Using a few simple inputs, this app will keep a record of your drinks, **on a private GSheet that you own**, estimate your blood alcohol concentration (BAC), and even keep track of your sobriety! *Son of a bitch, If I can't get clean, I'm gonna drink my life away!*
+
+## Features
+- Mobile-friendly drink logging. *Have a drink on me*. 
+- Google Sheets persistence
+- Flexible drink/brand/style history, whether you like bourbon, or scotch, or beer
+- Estimated BAC (*seeing double-double*)
+- Estimated time until sober / time sober. *So starting today, I'm breaking out of this cage*.
+
+## Requirements
+- R 4.4+
+- Google account
+- Google Sheet
+- Google Cloud service account
+- Google Sheets API enabled
+- Posit Connect Cloud account (for hosted deployment)
+
+## Google Sheets Schema
+| Column | Description |
+| --- | --- |
+| date | Drink date |
+| time | Drink time |
+| drink | Drink category |
+| brand | Brand |
+| style | Style/type |
+| abv | Alcohol by volume (%) |
+| volume | Volume (oz) |
+| notes | Optional notes |
+
+## Local Setup
+
+1. Clone repository.
+2. Restore packages:
+
+   `renv::restore()`
+
+3. Configure Google service account.
+   - Create and download a service-account JSON key.
+   - Enable the Google Sheets API.
+4. Share Sheet with service-account email.
+5. Configure environment variables.
+   - Base-64 encode the JSON
+   - use `usethis::edit_r_environ(scope = "user")` to load the encoded JSON into .Renviron file
+6. Run application.
+
+## Configuration
+
+Required environment variables:
+
+| Variable | Value|
+|------------------------------|------------------------------|
+| `GOOGLE_SERVICE_ACCOUNT_B64` | Base64-encoded service-account JSON |
+| `GOOGLE_SHEET_ID` | Google Sheet ID |
+
+> [!WARNING]
+> Never commit or publish your Google service-account credentials. Keep .Renviron and service-account JSON files outside version control. *The careless whispers of a good friend*.
   
-To use this app you will need:
-  1) R installed, with the required package "shiny".
-  2) A local directory from which to deploy the app.
-  3) A free <a href='https://www.shinyapps.io/'>shinyapps.io<a> account to host your app.
-  4) A free <a href='https://www.google.com/sheets/about/'>Google Sheet<a> with 8 columns as follows; 'date', 'time', 'drink', 'brand', 'style', 'abv', 'volume', 'notes'.
-  
-To launch this app:
-  1) Save the files in any directory on your machine.
-  2) Follow the steps to set up your shinyapp.io account and add the authentication token to the deploy_app.R file.
-  3) Link to your GoogleSheet file in the three places indicated in the app.R file.
-  4) Optional. Change the timezone settings for users not in the PST timezone (US West Coast).
-  5) Run the deploy_app.R script.
-  6) Save the address of your new app and enjoy.
+## Running Locally
+
+`shiny::runApp()`
+
+## Testing
+
+`testthat::test_dir("tests/testthat")`
+
+## Deployment
+
+Instructions for Posit Connect Cloud:
+
+- deploy through Positron
+- configure the two secret variables
+- do not deploy `.Renviron` or credential JSON
+- publish `app.R`
+
+## Known Limitations / Future Work
+
+- Drink sessions currently rely on separate date/time fields.
+- Sessions spanning midnight need improved handling. *Sleepin' with my clothes on*. 
+- BAC is an estimate, not a measurement.
+
+### TODOs:
+- Create page of figures and summary statistics
+- Password protect
+
+## License
+MIT
+
+> Hangovers only last a day, but memories last a lifetime.
