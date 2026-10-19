@@ -144,10 +144,10 @@ format_duration <- function(hours) {
 
 # Authentication utils ------------------------------------------------------
 authenticate_google <- function() {
-  credentials <- Sys.getenv("GOOGLE_SERVICE_ACCOUNT_JSON")
+  credentials <- Sys.getenv("GOOGLE_SERVICE_ACCOUNT_B64")
 
   if(!nzchar(credentials)) {
-    stop("GOOGLE_SERVICE_ACCOUNT_JSON environment variable is not configured.")
+    stop("Google service-account credentials are not configured.")
   }
 
   key_file <- tempfile(fileext = '.json')

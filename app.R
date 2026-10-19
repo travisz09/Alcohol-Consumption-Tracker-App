@@ -9,12 +9,13 @@
 ##### Travis Zalesky
 ##### Objective: Create a custom app for tracking and visualizing my alcohol consumption habits.
 
-##### To Do: ####
+##### TODOs: ####
 ##### Create figures page
 ##### Summary data 
-##### Publish updated script to github.
 ##### Password protect
-##### Bug: Gender select info button dosn't work well on mobile
+##### Bug: Gender select info button doesn't work well on mobile
+##### Bug: Selectize options porting to updated choices
+##### Refactor date-time structure to canonical timestamp structure
 
 ##### Begin app #####
 #install.packages("shiny")
@@ -40,8 +41,12 @@ source("R/utils.R")
 authenticate_google()
 
 # User Input Required!!
-# Put your gsheet url in .secrets/url.txt.
-sheetURL <- readLines(".secrets/url.txt")
+# Put your gsheet ID into a .Renviron
+sheetURL <- Sys.getenv("GOOGLE_SHEET_ID")
+
+if (!nzchar(sheetURL)) {
+  stop("GOOGLE_SHEET_ID environment variable is not configured.")
+}
 
 1 #google sheets option, grant permissions. Will require user browser input on first usage.
 
