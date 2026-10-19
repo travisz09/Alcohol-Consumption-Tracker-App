@@ -60,7 +60,7 @@ Required environment variables:
 | `GOOGLE_SERVICE_ACCOUNT_B64` | Base64-encoded service-account JSON |
 | `GOOGLE_SHEET_ID` | Google Sheet ID |
 
-> [WARNING!]
+> [!WARNING]
 > Never commit or publish your Google service-account credentials. Keep .Renviron and service-account JSON files outside version control. *The careless whispers of a good friend*.
   
 ## Running Locally
