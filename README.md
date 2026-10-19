@@ -13,7 +13,7 @@ This R [Shiny](https://shiny.posit.co/) App is a convenient way to keep track of
 - Google Sheets persistence
 - Flexible drink/brand/style history, whether you like bourbon, or scotch, or beer
 - Estimated BAC (*seeing double-double*)
-- Estimated time until sober / time sober. *So starting today, I'm breaking out of this cage*
+- Estimated time until sober / time sober. *So starting today, I'm breaking out of this cage*.
 
 ## Requirements
 - R 4.4+
@@ -60,8 +60,8 @@ Required environment variables:
 | `GOOGLE_SERVICE_ACCOUNT_B64` | Base64-encoded service-account JSON |
 | `GOOGLE_SHEET_ID` | Google Sheet ID |
 
-<font style="color:gray"><b>WARNING!</b></font>
-Never commit or publish your Google service-account credentials. Keep .Renviron and service-account JSON files outside version control. *The careless whispers of a good friend*.
+> [WARNING!]
+> Never commit or publish your Google service-account credentials. Keep .Renviron and service-account JSON files outside version control. *The careless whispers of a good friend*.
   
 ## Running Locally
 
